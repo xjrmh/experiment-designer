@@ -19,7 +19,7 @@ export function Footer() {
           </div>
           <div>
             <a
-              href="https://github.com"
+              href="https://github.com/xjrmh/experiment-designer"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-gray-900 transition-colors"
