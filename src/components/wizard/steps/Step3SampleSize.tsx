@@ -4,6 +4,8 @@ import { useSampleSize } from '@/hooks/useSampleSize'
 import { Card } from '@/components/common/Card'
 import { Input } from '@/components/common/Input'
 import { Tooltip } from '@/components/common/Tooltip'
+import { ExperimentType } from '@/types'
+import { ClusterPanel, SwitchbackPanel, FactorialPanel, MABPanel, CausalInferencePanel } from './type-panels'
 
 export function Step3SampleSize() {
   const {
@@ -13,6 +15,7 @@ export function Step3SampleSize() {
     setDurationEstimate,
     dailyTraffic,
     setDailyTraffic,
+    experimentType,
   } = useExperiment()
 
   const { sampleSizeResult, durationEstimate, primaryMetric } = useSampleSize()
@@ -113,94 +116,99 @@ export function Step3SampleSize() {
               />
             </div>
 
-            <div>
-              <Input
-                label="Number of Variants"
-                type="number"
-                min="2"
-                value={statisticalParams.variants}
-                onChange={(e) => {
-                  const newVariants = parseInt(e.target.value) || 2
-                  // Initialize traffic allocation with equal split
-                  const equalSplit = Math.floor(100 / newVariants)
-                  const remainder = 100 - equalSplit * newVariants
-                  const newAllocation = Array.from({ length: newVariants }, (_, i) =>
-                    i === 0 ? equalSplit + remainder : equalSplit
-                  )
-                  updateStatisticalParams({
-                    variants: newVariants,
-                    trafficAllocation: newAllocation,
-                  })
-                }}
-                helperText="Including control"
-              />
-            </div>
+            {/* Hide variants/allocation for Factorial (auto-computed from factor config) and MAB */}
+            {experimentType !== ExperimentType.FACTORIAL && experimentType !== ExperimentType.MAB && (
+              <>
+                <div>
+                  <Input
+                    label="Number of Variants"
+                    type="number"
+                    min="2"
+                    value={statisticalParams.variants}
+                    onChange={(e) => {
+                      const newVariants = parseInt(e.target.value) || 2
+                      // Initialize traffic allocation with equal split
+                      const equalSplit = Math.floor(100 / newVariants)
+                      const remainder = 100 - equalSplit * newVariants
+                      const newAllocation = Array.from({ length: newVariants }, (_, i) =>
+                        i === 0 ? equalSplit + remainder : equalSplit
+                      )
+                      updateStatisticalParams({
+                        variants: newVariants,
+                        trafficAllocation: newAllocation,
+                      })
+                    }}
+                    helperText="Including control"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Traffic Allocation (%)</label>
-              <div className="grid grid-cols-2 gap-3">
-                {Array.from({ length: statisticalParams.variants }).map((_, index) => {
-                  const isLast = index === statisticalParams.variants - 1
-                  const label = index === 0 ? 'Control' : `Treatment ${index}`
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Traffic Allocation (%)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {Array.from({ length: statisticalParams.variants }).map((_, index) => {
+                      const isLast = index === statisticalParams.variants - 1
+                      const label = index === 0 ? 'Control' : `Treatment ${index}`
 
-                  return (
-                    <Input
-                      key={index}
-                      label={label}
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={statisticalParams.trafficAllocation[index] || 0}
-                      onChange={(e) => {
-                        const newValue = parseInt(e.target.value) || 0
-                        const newAllocation = [...statisticalParams.trafficAllocation]
-                        newAllocation[index] = newValue
+                      return (
+                        <Input
+                          key={index}
+                          label={label}
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={statisticalParams.trafficAllocation[index] || 0}
+                          onChange={(e) => {
+                            const newValue = parseInt(e.target.value) || 0
+                            const newAllocation = [...statisticalParams.trafficAllocation]
+                            newAllocation[index] = newValue
 
-                        // Auto-calculate the last variant to ensure 100% total
-                        if (!isLast) {
-                          const sumOfOthers = newAllocation.slice(0, -1).reduce((sum, val) => sum + val, 0)
-                          newAllocation[statisticalParams.variants - 1] = Math.max(0, 100 - sumOfOthers)
-                        }
+                            // Auto-calculate the last variant to ensure 100% total
+                            if (!isLast) {
+                              const sumOfOthers = newAllocation.slice(0, -1).reduce((sum, val) => sum + val, 0)
+                              newAllocation[statisticalParams.variants - 1] = Math.max(0, 100 - sumOfOthers)
+                            }
 
-                        updateStatisticalParams({ trafficAllocation: newAllocation })
-                      }}
-                      disabled={isLast}
-                    />
-                  )
-                })}
-              </div>
-              {(() => {
-                const sumOfEditable = statisticalParams.trafficAllocation
-                  .slice(0, -1)
-                  .reduce((sum, val) => sum + val, 0)
-                const lastVariant = statisticalParams.trafficAllocation[statisticalParams.variants - 1]
-                const totalSum = statisticalParams.trafficAllocation.reduce((sum, val) => sum + val, 0)
+                            updateStatisticalParams({ trafficAllocation: newAllocation })
+                          }}
+                          disabled={isLast}
+                        />
+                      )
+                    })}
+                  </div>
+                  {(() => {
+                    const sumOfEditable = statisticalParams.trafficAllocation
+                      .slice(0, -1)
+                      .reduce((sum, val) => sum + val, 0)
+                    const lastVariant = statisticalParams.trafficAllocation[statisticalParams.variants - 1]
+                    const totalSum = statisticalParams.trafficAllocation.reduce((sum, val) => sum + val, 0)
 
-                if (sumOfEditable > 100) {
-                  return (
-                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-700">
-                        ⚠️ Error: Traffic allocation exceeds 100% (currently {sumOfEditable}%). Please reduce the values.
-                      </p>
-                    </div>
-                  )
-                } else if (lastVariant === 0) {
-                  return (
-                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-700">
-                        ⚠️ Warning: Last variant has 0% traffic. Consider reducing other allocations.
-                      </p>
-                    </div>
-                  )
-                } else {
-                  return (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Last variant is auto-calculated to ensure 100% total (Total: {totalSum}%)
-                    </p>
-                  )
-                }
-              })()}
-            </div>
+                    if (sumOfEditable > 100) {
+                      return (
+                        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Error: Traffic allocation exceeds 100% (currently {sumOfEditable}%). Please reduce the values.
+                          </p>
+                        </div>
+                      )
+                    } else if (lastVariant === 0) {
+                      return (
+                        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-700">
+                            ⚠️ Warning: Last variant has 0% traffic. Consider reducing other allocations.
+                          </p>
+                        </div>
+                      )
+                    } else {
+                      return (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Last variant is auto-calculated to ensure 100% total (Total: {totalSum}%)
+                        </p>
+                      )
+                    }
+                  })()}
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -208,26 +216,38 @@ export function Step3SampleSize() {
         <div className="space-y-6">
           {sampleSizeResult && (
             <Card className="bg-primary-50 border-primary">
-              <h3 className="font-semibold text-gray-900 mb-4">Sample Size Calculation</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">
+                {sampleSizeResult.isAdaptive ? 'Exploration Budget' : 'Sample Size Calculation'}
+              </h3>
               <div className="space-y-3">
                 <div>
-                  <div className="text-sm text-gray-600">Sample Size per Variant</div>
+                  <div className="text-sm text-gray-600">
+                    {sampleSizeResult.isAdaptive
+                      ? 'Exploration Budget per Arm'
+                      : sampleSizeResult.totalCells
+                        ? 'Sample Size per Cell'
+                        : 'Sample Size per Variant'}
+                  </div>
                   <div className="text-3xl font-bold text-primary">
                     {sampleSizeResult.sampleSizePerVariant.toLocaleString()}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Total Sample Size</div>
+                  <div className="text-sm text-gray-600">
+                    {sampleSizeResult.isAdaptive ? 'Total Horizon' : 'Total Sample Size'}
+                  </div>
                   <div className="text-2xl font-semibold text-gray-900">
                     {sampleSizeResult.totalSampleSize.toLocaleString()}
                   </div>
                 </div>
-                <div className="pt-3 border-t border-primary-200">
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <div>Power: {(sampleSizeResult.calculatedPower * 100).toFixed(1)}%</div>
-                    <div>MDE: {sampleSizeResult.calculatedMDE.toFixed(2)}%</div>
+                {!sampleSizeResult.isAdaptive && (
+                  <div className="pt-3 border-t border-primary-200">
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <div>Power: {(sampleSizeResult.calculatedPower * 100).toFixed(1)}%</div>
+                      <div>MDE: {sampleSizeResult.calculatedMDE.toFixed(2)}%</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </Card>
           )}
@@ -271,6 +291,13 @@ export function Step3SampleSize() {
           )}
         </div>
       </div>
+
+      {/* Type-specific input panels */}
+      {experimentType === ExperimentType.CLUSTER && <ClusterPanel sampleSizeResult={sampleSizeResult} />}
+      {experimentType === ExperimentType.SWITCHBACK && <SwitchbackPanel sampleSizeResult={sampleSizeResult} />}
+      {experimentType === ExperimentType.FACTORIAL && <FactorialPanel sampleSizeResult={sampleSizeResult} />}
+      {experimentType === ExperimentType.MAB && <MABPanel sampleSizeResult={sampleSizeResult} />}
+      {experimentType === ExperimentType.CAUSAL_INFERENCE && <CausalInferencePanel sampleSizeResult={sampleSizeResult} />}
 
       {sampleSizeResult && (
         <Card>

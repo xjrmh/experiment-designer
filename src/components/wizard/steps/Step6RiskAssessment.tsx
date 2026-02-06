@@ -103,25 +103,39 @@ export function Step6RiskAssessment() {
           Complete all required items before launching the experiment
         </p>
         <div className="space-y-3">
-          {riskAssessment.preLaunchChecklist.map((item) => (
-            <label key={item.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                checked={item.completed}
-                onChange={() => toggleChecklistItem(item.id)}
-                className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-900">{item.label}</span>
-                  {item.required && (
-                    <span className="px-2 py-0.5 text-xs bg-error-100 text-error-700 rounded">Required</span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+          {riskAssessment.preLaunchChecklist.map((item, index) => {
+            const isTypeSpecific = item.id.includes('-')
+            const prevItem = index > 0 ? riskAssessment.preLaunchChecklist[index - 1] : null
+            const showSeparator = isTypeSpecific && (!prevItem || !prevItem.id.includes('-'))
+            return (
+              <div key={item.id}>
+                {showSeparator && (
+                  <div className="pt-3 mt-2 border-t-2 border-gray-200">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Type-Specific Checks
+                    </p>
+                  </div>
+                )}
+                <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={item.completed}
+                    onChange={() => toggleChecklistItem(item.id)}
+                    className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-900">{item.label}</span>
+                      {item.required && (
+                        <span className="px-2 py-0.5 text-xs bg-error-100 text-error-700 rounded">Required</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                  </div>
+                </label>
               </div>
-            </label>
-          ))}
+            )
+          })}
         </div>
 
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">

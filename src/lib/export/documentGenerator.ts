@@ -86,18 +86,43 @@ ${state.metrics
 ${
   state.sampleSizeResult
     ? `
-- **Sample Size per Variant:** ${state.sampleSizeResult.sampleSizePerVariant.toLocaleString()}
-- **Total Sample Size:** ${state.sampleSizeResult.totalSampleSize.toLocaleString()}
-- **Calculated Power:** ${(state.sampleSizeResult.calculatedPower * 100).toFixed(1)}%
-- **Calculated MDE:** ${state.sampleSizeResult.calculatedMDE.toFixed(2)}%
+- **${state.sampleSizeResult.isAdaptive ? 'Exploration Budget per Arm' : 'Sample Size per Variant'}:** ${state.sampleSizeResult.sampleSizePerVariant.toLocaleString()}
+- **${state.sampleSizeResult.isAdaptive ? 'Total Horizon' : 'Total Sample Size'}:** ${state.sampleSizeResult.totalSampleSize.toLocaleString()}
+${!state.sampleSizeResult.isAdaptive ? `- **Calculated Power:** ${(state.sampleSizeResult.calculatedPower * 100).toFixed(1)}%\n- **Calculated MDE:** ${state.sampleSizeResult.calculatedMDE.toFixed(2)}%` : ''}
+${state.sampleSizeResult.designEffect ? `- **Design Effect (DEFF):** ${state.sampleSizeResult.designEffect.toFixed(2)}` : ''}
+${state.sampleSizeResult.clustersNeeded ? `- **Clusters Needed (Total):** ${state.sampleSizeResult.clustersNeeded}` : ''}
+${state.sampleSizeResult.effectivePeriods ? `- **Effective Periods:** ${state.sampleSizeResult.effectivePeriods}` : ''}
+${state.sampleSizeResult.totalCells ? `- **Total Cells:** ${state.sampleSizeResult.totalCells}` : ''}
 
 #### Assumptions
 ${state.sampleSizeResult.assumptions.map((a) => `- ${a}`).join('\n')}
 
 ${state.sampleSizeResult.warnings ? `#### Warnings\n${state.sampleSizeResult.warnings.map((w) => `⚠️ ${w}`).join('\n')}` : ''}
+${state.sampleSizeResult.methodNotes ? `#### Method Notes\n${state.sampleSizeResult.methodNotes.map((n) => `- ${n}`).join('\n')}` : ''}
 `
     : 'Not calculated yet'
 }
+
+### Type-Specific Parameters
+${(() => {
+  const tp = state.statisticalParams.typeSpecificParams
+  if (!tp) return 'Standard A/B Test'
+  const lines: string[] = []
+  if (tp.icc != null) lines.push('- **ICC:** ' + tp.icc)
+  if (tp.clusterSize != null) lines.push('- **Cluster Size:** ' + tp.clusterSize)
+  if (tp.numPeriods != null) lines.push('- **Switchback Periods:** ' + tp.numPeriods)
+  if (tp.periodLength != null) lines.push('- **Period Length:** ' + tp.periodLength + ' hours')
+  if (tp.autocorrelation != null) lines.push('- **Autocorrelation:** ' + tp.autocorrelation)
+  if (tp.factors) lines.push('- **Factors:** ' + tp.factors.map(f => f.name + ' (' + f.levels + ' levels)').join(', '))
+  if (tp.detectInteraction) lines.push('- **Detect Interaction Effects:** Yes')
+  if (tp.horizon != null) lines.push('- **Horizon:** ' + tp.horizon.toLocaleString())
+  if (tp.explorationRate != null) lines.push('- **Exploration Rate:** ' + tp.explorationRate)
+  if (tp.numArms != null) lines.push('- **Number of Arms:** ' + tp.numArms)
+  if (tp.causalMethod) lines.push('- **Causal Method:** ' + tp.causalMethod.toUpperCase())
+  if (tp.serialCorrelation != null) lines.push('- **Serial Correlation:** ' + tp.serialCorrelation)
+  if (tp.bandwidth != null) lines.push('- **Bandwidth:** ' + tp.bandwidth)
+  return lines.length > 0 ? lines.join('\n') : 'Standard A/B Test'
+})()}
 
 ### Duration Estimate
 ${

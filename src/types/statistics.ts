@@ -51,6 +51,26 @@ export interface SampleSizeInput {
   metricType: 'binary' | 'continuous' | 'count'
   variants: number
   trafficAllocation: number[]
+  // Type-aware fields
+  experimentType?: 'AB_TEST' | 'CLUSTER' | 'SWITCHBACK' | 'FACTORIAL' | 'MAB' | 'CAUSAL_INFERENCE'
+  // Cluster
+  icc?: number
+  clusterSize?: number
+  // Switchback
+  numPeriods?: number
+  periodLength?: number
+  autocorrelation?: number
+  // Factorial
+  factors?: Array<{ name: string; levels: number }>
+  detectInteraction?: boolean
+  // MAB
+  horizon?: number
+  explorationRate?: number
+  numArms?: number
+  // Causal Inference
+  causalMethod?: 'did' | 'rdd' | 'psm' | 'iv'
+  serialCorrelation?: number
+  bandwidth?: number
 }
 
 // Duration calculation inputs

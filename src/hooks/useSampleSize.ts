@@ -4,11 +4,13 @@ import { useExperiment } from './useExperiment'
 
 /**
  * Hook for sample size calculations with memoization
+ * Passes experimentType and type-specific params for type-aware calculations
  */
 export function useSampleSize() {
-  const { metrics, statisticalParams, dailyTraffic } = useExperiment()
+  const { metrics, statisticalParams, dailyTraffic, experimentType } = useExperiment()
 
   const primaryMetric = metrics.find((m) => m.category === 'PRIMARY')
+  const typeParams = statisticalParams.typeSpecificParams || {}
 
   const sampleSizeResult = useMemo(() => {
     if (!primaryMetric) return null
@@ -25,12 +27,14 @@ export function useSampleSize() {
         metricType: primaryMetric.type === 'BINARY' ? 'binary' : primaryMetric.type === 'CONTINUOUS' ? 'continuous' : 'count',
         variants: statisticalParams.variants,
         trafficAllocation: statisticalParams.trafficAllocation,
+        experimentType: experimentType ?? undefined,
+        ...typeParams,
       })
     } catch (error) {
       console.error('Sample size calculation error:', error)
       return null
     }
-  }, [primaryMetric, statisticalParams])
+  }, [primaryMetric, statisticalParams, experimentType])
 
   const durationEstimate = useMemo(() => {
     if (!sampleSizeResult || !dailyTraffic) return null

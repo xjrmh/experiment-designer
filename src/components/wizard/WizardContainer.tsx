@@ -1,5 +1,6 @@
 import { useExperiment } from '@/hooks/useExperiment'
 import { Button } from '../common/Button'
+import { ExperimentType } from '@/types'
 import { Step1ExperimentType } from './steps/Step1ExperimentType'
 import { Step2MetricsSelection } from './steps/Step2MetricsSelection'
 import { Step3SampleSize } from './steps/Step3SampleSize'
@@ -10,7 +11,7 @@ import { Step7Monitoring } from './steps/Step7Monitoring'
 import { Step8Summary } from './steps/Step8Summary'
 
 export function WizardContainer() {
-  const { currentStep, previousStep, nextStep, experimentType, metrics, reset } = useExperiment()
+  const { currentStep, previousStep, nextStep, experimentType, metrics, statisticalParams, reset } = useExperiment()
 
   const renderStep = () => {
     switch (currentStep) {
@@ -41,6 +42,16 @@ export function WizardContainer() {
         return experimentType !== null
       case 2:
         return metrics.length > 0 && metrics.some((m) => m.category === 'PRIMARY')
+      case 3: {
+        const tp = statisticalParams.typeSpecificParams
+        if (experimentType === ExperimentType.CLUSTER) {
+          return tp?.icc != null && tp.icc > 0 && tp?.clusterSize != null && tp.clusterSize >= 2
+        }
+        if (experimentType === ExperimentType.FACTORIAL) {
+          return tp?.factors != null && tp.factors.length >= 2 && tp.factors.every(f => f.levels >= 2)
+        }
+        return true
+      }
       default:
         return true
     }
@@ -53,19 +64,21 @@ export function WizardContainer() {
       </div>
 
       <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-gray-200 bg-white/50 backdrop-blur-sm -mx-6 px-6 py-4 rounded-b-xl">
-        <Button
-          variant="outline"
-          onClick={previousStep}
-          disabled={currentStep === 1}
-          size="md"
-        >
-          <span className="flex items-center gap-2">
-            <span>←</span>
-            <span>Previous</span>
-          </span>
-        </Button>
+        {currentStep < 8 && (
+          <Button
+            variant="outline"
+            onClick={previousStep}
+            disabled={currentStep === 1}
+            size="md"
+          >
+            <span className="flex items-center gap-2">
+              <span>←</span>
+              <span>Previous</span>
+            </span>
+          </Button>
+        )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 ml-auto">
           <Button variant="ghost" onClick={reset} size="md">
             Reset
           </Button>

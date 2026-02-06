@@ -2,10 +2,16 @@ import { useExperiment } from '@/hooks/useExperiment'
 import { Card } from '@/components/common/Card'
 import { Select } from '@/components/common/Select'
 import { Input } from '@/components/common/Input'
-import { RandomizationUnit, BucketingStrategy } from '@/types'
+import { RandomizationUnit, BucketingStrategy, ExperimentType } from '@/types'
+import { EXPERIMENT_TEMPLATES } from '@/constants/experimentTypes'
+
+const LOCKED_UNIT_TYPES: ExperimentType[] = [ExperimentType.CLUSTER, ExperimentType.SWITCHBACK, ExperimentType.MAB]
 
 export function Step4Randomization() {
-  const { randomization, updateRandomization } = useExperiment()
+  const { randomization, updateRandomization, experimentType } = useExperiment()
+  const template = experimentType ? EXPERIMENT_TEMPLATES[experimentType] : null
+  const isUnitLocked = experimentType != null && LOCKED_UNIT_TYPES.includes(experimentType)
+  const isConsistentLocked = experimentType === ExperimentType.SWITCHBACK || experimentType === ExperimentType.MAB
 
   return (
     <div className="space-y-6">
@@ -24,6 +30,7 @@ export function Step4Randomization() {
               label="Unit of Randomization"
               value={randomization.unit}
               onChange={(e) => updateRandomization({ unit: e.target.value as RandomizationUnit })}
+              disabled={isUnitLocked}
             >
               <option value={RandomizationUnit.USER_ID}>User ID</option>
               <option value={RandomizationUnit.SESSION}>Session</option>
@@ -31,6 +38,22 @@ export function Step4Randomization() {
               <option value={RandomizationUnit.REQUEST}>Request</option>
               <option value={RandomizationUnit.CLUSTER}>Cluster</option>
             </Select>
+
+            {isUnitLocked && template && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  Randomization unit is set to <strong>{randomization.unit}</strong> as required for {template.name}.
+                </p>
+              </div>
+            )}
+
+            {!isUnitLocked && template?.recommendedRandomization?.unit && randomization.unit !== template.recommendedRandomization.unit && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-700">
+                  The recommended randomization unit for {template.name} is <strong>{template.recommendedRandomization.unit}</strong>.
+                </p>
+              </div>
+            )}
 
             <div className="text-sm text-gray-600 space-y-2">
               <p><strong>User ID:</strong> Most common. Same user always sees same variant.</p>
@@ -63,12 +86,18 @@ export function Step4Randomization() {
                   checked={randomization.consistentAssignment}
                   onChange={(e) => updateRandomization({ consistentAssignment: e.target.checked })}
                   className="rounded border-gray-300 text-primary focus:ring-primary"
+                  disabled={isConsistentLocked}
                 />
                 <span className="text-sm text-gray-700">Consistent Assignment</span>
               </label>
               <p className="text-sm text-gray-600 ml-6">
                 User sees same variant on return visits
               </p>
+              {isConsistentLocked && (
+                <p className="text-sm text-blue-700 ml-6">
+                  Disabled for {template?.name} — users experience different conditions across periods/requests.
+                </p>
+              )}
             </div>
 
             <div className="text-sm text-gray-600 space-y-2">

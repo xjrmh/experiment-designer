@@ -2,10 +2,10 @@ import { useExperiment } from '@/hooks/useExperiment'
 import { Card } from '@/components/common/Card'
 import { Select } from '@/components/common/Select'
 import { Input } from '@/components/common/Input'
-import { MultipleTestingCorrection } from '@/types'
+import { MultipleTestingCorrection, ExperimentType } from '@/types'
 
 export function Step7Monitoring() {
-  const { monitoring, updateMonitoring } = useExperiment()
+  const { monitoring, updateMonitoring, experimentType } = useExperiment()
 
   return (
     <div className="space-y-6">
@@ -51,6 +51,33 @@ export function Step7Monitoring() {
           />
         </div>
       </Card>
+
+      {experimentType === ExperimentType.MAB && (
+        <Card className="bg-amber-50 border-amber-200">
+          <h4 className="font-medium text-amber-900 mb-2">MAB Convergence</h4>
+          <p className="text-sm text-amber-800">
+            MAB experiments do not use traditional significance-based stopping rules. Instead, define convergence criteria — e.g., when the best arm's selection probability exceeds 95% for 3 consecutive evaluation windows, or when exploration rounds are exhausted.
+          </p>
+        </Card>
+      )}
+
+      {experimentType === ExperimentType.SWITCHBACK && (
+        <Card className="bg-blue-50 border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-2">Switchback Monitoring</h4>
+          <p className="text-sm text-blue-800">
+            Monitor at the period level. Ensure time-of-day and day-of-week balance across treatment conditions. Watch for carryover effects between periods.
+          </p>
+        </Card>
+      )}
+
+      {experimentType === ExperimentType.AB_TEST && (
+        <Card className="bg-blue-50 border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-2">Sequential Testing</h4>
+          <p className="text-sm text-blue-800">
+            Consider using sequential testing boundaries (O'Brien-Fleming or Pocock) to allow valid early stopping while controlling Type I error. This lets you peek at results without inflating false positive rates.
+          </p>
+        </Card>
+      )}
 
       <Card>
         <h3 className="font-semibold text-gray-900 mb-4">Stopping Rules</h3>

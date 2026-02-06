@@ -2,9 +2,11 @@ import { useExperiment } from '@/hooks/useExperiment'
 import { Card } from '@/components/common/Card'
 import { Input } from '@/components/common/Input'
 import { Tooltip } from '@/components/common/Tooltip'
+import { ExperimentType } from '@/types'
 
 export function Step5VarianceReduction() {
-  const { varianceReduction, updateVarianceReduction } = useExperiment()
+  const { varianceReduction, updateVarianceReduction, experimentType } = useExperiment()
+  const isMAB = experimentType === ExperimentType.MAB
 
   return (
     <div className="space-y-6">
@@ -15,20 +17,35 @@ export function Step5VarianceReduction() {
         </p>
       </div>
 
-      <Card className="bg-blue-50 border-blue-200">
-        <div className="flex items-start gap-3">
-          <div className="text-2xl">ℹ️</div>
-          <div className="flex-1">
-            <h4 className="font-medium text-blue-900 mb-1">Optional: Advanced Technique</h4>
-            <p className="text-sm text-blue-800">
-              This section is optional. Variance reduction techniques can improve experiment efficiency, but they require statistical expertise to implement correctly.
-              If you're unsure, you can skip this section and consult with a Data Scientist later.
-            </p>
+      {isMAB ? (
+        <Card className="bg-amber-50 border-amber-200">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">ℹ️</div>
+            <div className="flex-1">
+              <h4 className="font-medium text-amber-900 mb-1">Not Applicable for Multi-Armed Bandits</h4>
+              <p className="text-sm text-amber-800">
+                Variance reduction techniques are designed for fixed-sample statistical testing and do not apply to adaptive MAB algorithms.
+                You can skip this step.
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      ) : (
+        <Card className="bg-blue-50 border-blue-200">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">ℹ️</div>
+            <div className="flex-1">
+              <h4 className="font-medium text-blue-900 mb-1">Optional: Advanced Technique</h4>
+              <p className="text-sm text-blue-800">
+                This section is optional. Variance reduction techniques can improve experiment efficiency, but they require statistical expertise to implement correctly.
+                If you're unsure, you can skip this section and consult with a Data Scientist later.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
-      <Card>
+      {!isMAB && <><Card>
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900 mb-2">CUPED (Recommended)</h3>
@@ -72,6 +89,16 @@ export function Step5VarianceReduction() {
                 }
                 helperText="Typical range: 30-50%"
               />
+              {experimentType === ExperimentType.SWITCHBACK && (
+                <p className="text-sm text-blue-700">
+                  Within-unit comparison in switchback designs already provides some variance reduction. CUPED can provide additional benefit if applied at the period level.
+                </p>
+              )}
+              {experimentType === ExperimentType.CLUSTER && (
+                <p className="text-sm text-blue-700">
+                  CUPED can be applied at the cluster level using pre-experiment cluster-level averages as covariates.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -141,7 +168,7 @@ export function Step5VarianceReduction() {
           Variance reduction techniques can significantly reduce required sample size or experiment duration.
           CUPED is the most impactful and easiest to implement.
         </p>
-      </Card>
+      </Card></>}
     </div>
   )
 }

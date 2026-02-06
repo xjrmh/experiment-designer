@@ -4,6 +4,29 @@ import { Card } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { generateMarkdownDocument, generateJSONDocument, downloadFile } from '@/lib/export/documentGenerator'
+import { ExperimentType } from '@/types'
+
+function renderTypeSpecificSummary(state: ReturnType<typeof useExperiment>): string | null {
+  const tp = state.statisticalParams.typeSpecificParams
+  const result = state.sampleSizeResult
+  if (!tp) return null
+  switch (state.experimentType) {
+    case ExperimentType.CLUSTER:
+      return `DEFF: ${result?.designEffect?.toFixed(2) ?? '—'} | Clusters: ${result?.clustersNeeded ?? '—'}`
+    case ExperimentType.SWITCHBACK:
+      return `Effective Periods: ${result?.effectivePeriods ?? '—'} | ρ: ${tp.autocorrelation ?? '—'}`
+    case ExperimentType.FACTORIAL:
+      return `Cells: ${result?.totalCells ?? '—'} | Interaction: ${tp.detectInteraction ? 'Yes' : 'No'}`
+    case ExperimentType.MAB:
+      return `Horizon: ${(tp.horizon ?? 0).toLocaleString()} | ε: ${tp.explorationRate ?? '—'}`
+    case ExperimentType.CAUSAL_INFERENCE: {
+      const labels: Record<string, string> = { did: 'DiD', rdd: 'RDD', psm: 'PSM', iv: 'IV' }
+      return `Method: ${labels[tp.causalMethod ?? ''] ?? '—'}`
+    }
+    default:
+      return null
+  }
+}
 
 export function Step8Summary() {
   const state = useExperiment()
@@ -114,7 +137,7 @@ export function Step8Summary() {
 
       <Card>
         <h3 className="font-semibold text-gray-900 mb-4">Quick Summary</h3>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${state.experimentType && state.experimentType !== ExperimentType.AB_TEST ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
           <div className="p-4 bg-primary-50 rounded-lg">
             <div className="text-sm text-gray-600">Experiment Type</div>
             <div className="text-lg font-semibold text-gray-900 mt-1">
@@ -122,7 +145,9 @@ export function Step8Summary() {
             </div>
           </div>
           <div className="p-4 bg-primary-50 rounded-lg">
-            <div className="text-sm text-gray-600">Sample Size (Total)</div>
+            <div className="text-sm text-gray-600">
+              {state.sampleSizeResult?.isAdaptive ? 'Total Horizon' : 'Sample Size (Total)'}
+            </div>
             <div className="text-lg font-semibold text-gray-900 mt-1">
               {state.sampleSizeResult?.totalSampleSize.toLocaleString() || 'Not calculated'}
             </div>
@@ -133,6 +158,16 @@ export function Step8Summary() {
               {state.durationEstimate ? `${state.durationEstimate.days} days` : 'Not calculated'}
             </div>
           </div>
+          {(() => {
+            const typeInfo = renderTypeSpecificSummary(state)
+            if (!typeInfo) return null
+            return (
+              <div className="p-4 bg-primary-50 rounded-lg">
+                <div className="text-sm text-gray-600">Type-Specific</div>
+                <div className="text-lg font-semibold text-gray-900 mt-1">{typeInfo}</div>
+              </div>
+            )
+          })()}
         </div>
       </Card>
 

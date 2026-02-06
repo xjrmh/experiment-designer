@@ -5,10 +5,27 @@ import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { Select } from '@/components/common/Select'
 import { COMMON_METRICS, createMetric } from '@/lib/metrics/metricDefinitions'
-import { MetricCategory, MetricType, MetricDirection, type Metric } from '@/types'
+import { MetricCategory, MetricType, MetricDirection, ExperimentType, type Metric } from '@/types'
+
+function getMetricGuidance(experimentType: ExperimentType | null): { message: string; level: 'info' | 'warning' } | null {
+  switch (experimentType) {
+    case ExperimentType.MAB:
+      return { message: 'Multi-Armed Bandits typically optimize a single reward metric. Multiple PRIMARY metrics may cause conflicting optimization signals.', level: 'warning' }
+    case ExperimentType.CAUSAL_INFERENCE:
+      return { message: 'Define a clear outcome variable as your PRIMARY metric. Consider whether confounders are measured and included as covariates.', level: 'info' }
+    case ExperimentType.FACTORIAL:
+      return { message: 'Metrics will be measured across all factor combinations. Ensure your primary metric is meaningful for every cell.', level: 'info' }
+    case ExperimentType.CLUSTER:
+      return { message: 'Choose metrics that can be aggregated at the cluster level. Individual-level metrics will need cluster-level adjustment.', level: 'info' }
+    case ExperimentType.SWITCHBACK:
+      return { message: 'Select metrics that respond quickly to treatment changes. Slow-moving metrics may not capture switchback effects within each period.', level: 'info' }
+    default:
+      return null
+  }
+}
 
 export function Step2MetricsSelection() {
-  const { metrics, addMetric, removeMetric, updateMetric } = useExperiment()
+  const { metrics, addMetric, removeMetric, updateMetric, experimentType } = useExperiment()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +65,28 @@ export function Step2MetricsSelection() {
           Choose or define the metrics you'll track during the experiment
         </p>
       </div>
+
+      {/* Type-specific guidance */}
+      {(() => {
+        const guidance = getMetricGuidance(experimentType)
+        if (!guidance) return null
+        const isWarning = guidance.level === 'warning'
+        return (
+          <div className={`p-4 rounded-lg border ${isWarning ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+            <p className={`text-sm ${isWarning ? 'text-amber-800' : 'text-blue-800'}`}>
+              {guidance.message}
+            </p>
+          </div>
+        )
+      })()}
+
+      {experimentType === ExperimentType.MAB && primaryCount > 1 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm text-amber-800 font-medium">
+            You have {primaryCount} PRIMARY metrics. MAB algorithms work best with a single reward signal.
+          </p>
+        </div>
+      )}
 
       {/* Current Metrics */}
       {metrics.length > 0 && (

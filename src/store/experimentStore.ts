@@ -11,12 +11,14 @@ import type {
   VarianceReductionConfig,
   RiskAssessment,
   MonitoringConfig,
+  TypeSpecificParams,
   RandomizationUnit,
   BucketingStrategy,
   RiskLevel,
   MultipleTestingCorrection,
 } from '@/types'
-import { DEFAULT_ALPHA, DEFAULT_POWER, DEFAULT_MDE, DEFAULT_TRAFFIC_ALLOCATION, DEFAULT_VARIANTS } from '@/constants/defaults'
+import { DEFAULT_ALPHA, DEFAULT_POWER, DEFAULT_MDE, DEFAULT_TRAFFIC_ALLOCATION, DEFAULT_VARIANTS, getTypeSpecificDefaults, BASE_CHECKLIST, TYPE_CHECKLIST_ITEMS } from '@/constants/defaults'
+import { EXPERIMENT_TEMPLATES } from '@/constants/experimentTypes'
 
 interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'updatedAt'> {
   currentStep: number
@@ -31,6 +33,7 @@ interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'u
   updateMetric: (id: string, updates: Partial<Metric>) => void
   removeMetric: (id: string) => void
   updateStatisticalParams: (params: Partial<StatisticalParams>) => void
+  updateTypeSpecificParams: (params: Partial<TypeSpecificParams>) => void
   setSampleSizeResult: (result: SampleSizeResult) => void
   setDurationEstimate: (estimate: DurationEstimate) => void
   setDailyTraffic: (traffic: number) => void
@@ -58,6 +61,7 @@ const initialState = {
     mdeType: 'relative' as const,
     trafficAllocation: DEFAULT_TRAFFIC_ALLOCATION,
     variants: DEFAULT_VARIANTS,
+    typeSpecificParams: {},
   },
   sampleSizeResult: null,
   durationEstimate: null,
@@ -116,7 +120,28 @@ export const useExperimentStore = create<ExperimentState>()(
 
       setCurrentStep: (step) => set({ currentStep: step }),
 
-      setExperimentType: (type) => set({ experimentType: type }),
+      setExperimentType: (type) =>
+        set((state) => {
+          const template = EXPERIMENT_TEMPLATES[type]
+          const typeDefaults = getTypeSpecificDefaults(type)
+          const typeChecklist = TYPE_CHECKLIST_ITEMS[type] || []
+          return {
+            experimentType: type,
+            randomization: {
+              ...state.randomization,
+              ...template.recommendedRandomization,
+            },
+            statisticalParams: {
+              ...state.statisticalParams,
+              ...template.defaultParams,
+              typeSpecificParams: typeDefaults,
+            },
+            riskAssessment: {
+              ...state.riskAssessment,
+              preLaunchChecklist: [...BASE_CHECKLIST, ...typeChecklist],
+            },
+          }
+        }),
 
       setName: (name) => set({ name }),
 
@@ -142,6 +167,17 @@ export const useExperimentStore = create<ExperimentState>()(
       updateStatisticalParams: (params) =>
         set((state) => ({
           statisticalParams: { ...state.statisticalParams, ...params },
+        })),
+
+      updateTypeSpecificParams: (params) =>
+        set((state) => ({
+          statisticalParams: {
+            ...state.statisticalParams,
+            typeSpecificParams: {
+              ...state.statisticalParams.typeSpecificParams,
+              ...params,
+            },
+          },
         })),
 
       setSampleSizeResult: (result) => set({ sampleSizeResult: result }),

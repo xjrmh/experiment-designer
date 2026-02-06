@@ -44,6 +44,32 @@ export interface Metric {
   sampleSize?: number // Historical sample size
 }
 
+// Type-specific parameters per experiment type
+export interface TypeSpecificParams {
+  // Cluster
+  icc?: number // Intra-cluster correlation [0,1]
+  clusterSize?: number // Average units per cluster
+
+  // Switchback
+  numPeriods?: number // Total switchback periods
+  periodLength?: number // Hours per period
+  autocorrelation?: number // Temporal autocorrelation [0,1)
+
+  // Factorial
+  factors?: Array<{ name: string; levels: number }>
+  detectInteraction?: boolean
+
+  // MAB
+  horizon?: number // Total observations budget
+  explorationRate?: number // Epsilon for epsilon-greedy
+  numArms?: number // Number of arms
+
+  // Causal Inference
+  causalMethod?: 'did' | 'rdd' | 'psm' | 'iv'
+  serialCorrelation?: number // For DiD
+  bandwidth?: number // For RDD
+}
+
 // Statistical parameters
 export interface StatisticalParams {
   alpha: number // Significance level (default 0.05)
@@ -52,6 +78,7 @@ export interface StatisticalParams {
   mdeType: 'relative' | 'absolute' // Relative % or absolute value
   trafficAllocation: number[] // e.g., [50, 50] or [90, 10]
   variants: number // Number of variants (including control)
+  typeSpecificParams?: TypeSpecificParams
 }
 
 // Sample size result
@@ -62,6 +89,16 @@ export interface SampleSizeResult {
   calculatedMDE: number
   assumptions: string[]
   warnings?: string[]
+  // Type-specific outputs
+  clustersNeeded?: number // Cluster
+  designEffect?: number // Cluster (DEFF)
+  effectivePeriods?: number // Switchback
+  totalCells?: number // Factorial
+  cellSampleSize?: number // Factorial
+  interactionSampleSize?: number // Factorial (if detectInteraction)
+  estimatedRegret?: number // MAB
+  isAdaptive?: boolean // MAB
+  methodNotes?: string[] // Causal Inference
 }
 
 // Duration estimation
