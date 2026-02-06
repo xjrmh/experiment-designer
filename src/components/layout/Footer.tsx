@@ -14,18 +14,16 @@ export function Footer() {
               >
                 Li Zheng
               </a>
-              {' '}with AI.
+              {' '}& Claude. Open source on{' '}
+              <a
+                href="https://github.com/xjrmh/experiment-designer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                GitHub
+              </a>.
             </p>
-          </div>
-          <div>
-            <a
-              href="https://github.com/xjrmh/experiment-designer"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-900 transition-colors"
-            >
-              GitHub
-            </a>
           </div>
         </div>
       </div>

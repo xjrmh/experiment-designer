@@ -25,7 +25,7 @@ export function calculatePower(params: {
       p2: baseline + effectSize,
     })
   } else if (metricType === 'continuous') {
-    const variance = params.variance || baseline * 0.1
+    const variance = params.variance || (baseline * 0.1) ** 2
     power = calculatePowerForContinuous({
       n: sampleSize,
       alpha,
@@ -180,7 +180,7 @@ export function generateMDESensitivity(params: {
   metricType: 'binary' | 'continuous' | 'count'
 }): Array<{ sampleSize: number; mde: number }> {
   const { sampleSizes, alpha, power, baseline, metricType } = params
-  const variance = params.variance || baseline * 0.1
+  const variance = params.variance || (baseline * 0.1) ** 2
 
   return sampleSizes.map((sampleSize) => {
     const zAlpha = jStat.normal.inv(1 - alpha / 2, 0, 1)

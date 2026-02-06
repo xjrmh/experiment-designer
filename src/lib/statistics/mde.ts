@@ -27,7 +27,7 @@ export function calculateMDE(params: {
     mdeAbsolute = (zAlpha + zBeta) * Math.sqrt((2 * p * (1 - p)) / sampleSize)
   } else if (metricType === 'continuous') {
     // For continuous metrics
-    const variance = params.variance || baseline * 0.1 // Default: 10% CV
+    const variance = params.variance || (baseline * 0.1) ** 2 // Default: 10% CV → σ = 0.1×μ, σ² = 0.01×μ²
     mdeAbsolute = (zAlpha + zBeta) * Math.sqrt((2 * variance) / sampleSize)
   } else {
     // For count metrics (Poisson)

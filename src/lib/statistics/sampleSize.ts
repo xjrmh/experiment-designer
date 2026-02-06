@@ -26,7 +26,7 @@ export function calculateSampleSize(input: SampleSizeInput): SampleSizeResult {
     assumptions.push(`Baseline conversion rate: ${(baseline * 100).toFixed(2)}%`)
     assumptions.push(`Minimum detectable effect: ${mdeType === 'relative' ? `${mde}%` : effectSize.toFixed(4)}`)
   } else if (metricType === 'continuous') {
-    const variance = input.variance || (input.stdDev ? input.stdDev ** 2 : baseline * 0.1) // Default: 10% CV
+    const variance = input.variance || (input.stdDev ? input.stdDev ** 2 : (baseline * 0.1) ** 2) // Default: 10% CV → σ = 0.1×μ, σ² = 0.01×μ²
     sampleSizePerVariant = calculateSampleSizeForContinuous({
       alpha,
       power,
@@ -169,9 +169,9 @@ export function calculateSampleSize(input: SampleSizeInput): SampleSizeResult {
     methodNotes = []
     if (input.causalMethod === 'did') {
       if (input.serialCorrelation != null && input.serialCorrelation > 0) {
-        const inflation = 1 / (1 - input.serialCorrelation)
+        const inflation = (1 + input.serialCorrelation) / (1 - input.serialCorrelation)
         sampleSizePerVariant = Math.ceil(sampleSizePerVariant * inflation)
-        assumptions.push(`DiD serial correlation adjustment: ${inflation.toFixed(2)}x`)
+        assumptions.push(`DiD serial correlation adjustment (AR(1) VIF): ${inflation.toFixed(2)}x`)
       }
       methodNotes.push('Difference-in-Differences assumes parallel trends in the absence of treatment.')
     } else if (input.causalMethod === 'rdd') {
@@ -281,7 +281,8 @@ function calculateMABBudget(
   const exploreBudget = Math.ceil(horizon * explorationRate)
   const exploitBudget = horizon - exploreBudget
   const perArmExplore = Math.ceil(exploreBudget / numArms)
-  const estimatedRegret = explorationRate * horizon
+  // During exploration, 1/K pulls randomly hit the best arm (zero regret)
+  const estimatedRegret = explorationRate * horizon * (numArms - 1) / numArms
   return { exploreBudget, exploitBudget, perArmExplore, estimatedRegret }
 }
 
