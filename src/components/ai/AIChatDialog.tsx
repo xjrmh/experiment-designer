@@ -235,12 +235,14 @@ export function AIChatDialog() {
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [apiKeyError, setApiKeyError] = useState('')
   const [showOwnKey, setShowOwnKey] = useState(false)
+  const [starterPromptDismissed, setStarterPromptDismissed] = useState(false)
+  const [hasSelectedTryYourself, setHasSelectedTryYourself] = useState(false)
   const demoRunIdRef = useRef(0)
 
   const isReady = isDemo || !!apiKey
   const hasUserMessage = messages.some((m) => m.role === 'user')
   const hasConfiguredDemo = messages.some((m) => m.configuredAction?.startsWith('Configured demo:'))
-  const shouldShowConversationDemoOptions = isReady && !hasUserMessage && !hasConfiguredDemo
+  const shouldShowConversationDemoOptions = isReady && !hasUserMessage && !hasConfiguredDemo && !starterPromptDismissed
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -459,6 +461,7 @@ export function AIChatDialog() {
       const isStaleRun = () => demoRunIdRef.current !== runId
 
       setLoading(true)
+      setStarterPromptDismissed(true)
       try {
         experimentStore.reset()
         experimentStore.clearAIHighlights()
@@ -565,6 +568,17 @@ export function AIChatDialog() {
     },
     [experimentStore, clearMessages, setDemo, addMessage, isDemo, apiKey, setLoading]
   )
+
+  const startSelfGuidedDemo = useCallback((source: 'setup' | 'thread' = 'thread') => {
+    setStarterPromptDismissed(true)
+    if (source === 'setup') {
+      setHasSelectedTryYourself(true)
+    }
+    if (!isDemo && !apiKey) {
+      setDemo(true)
+      setApiKey('')
+    }
+  }, [isDemo, apiKey, setDemo, setApiKey])
 
   const handleSend = useCallback(
     async (e?: FormEvent) => {
@@ -706,6 +720,7 @@ export function AIChatDialog() {
           {isReady && messages.length > 0 && (
             <button
               onClick={() => {
+                setStarterPromptDismissed(false)
                 clearMessages()
                 addMessage({ role: 'assistant', content: GREETING_MESSAGE })
               }}
@@ -783,6 +798,20 @@ export function AIChatDialog() {
                   <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
                 </div>
               </button>
+              <button
+                onClick={() => startSelfGuidedDemo('setup')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Demo Yourself</div>
+                  <div className="text-xs text-gray-500">Start demo mode without a template</div>
+                </div>
+              </button>
             </div>
 
             {showOwnKey ? (
@@ -846,6 +875,15 @@ export function AIChatDialog() {
                   <div className="text-xs font-semibold text-gray-900">Complex Demo</div>
                   <div className="text-[11px] text-gray-500">Cluster messaging test with network effects</div>
                 </button>
+                {!hasSelectedTryYourself && (
+                  <button
+                    onClick={() => startSelfGuidedDemo('thread')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="text-xs font-semibold text-gray-900">Demo Yourself</div>
+                    <div className="text-[11px] text-gray-500">Skip templates and start chatting</div>
+                  </button>
+                )}
               </div>
             )}
             {isLoading && (
