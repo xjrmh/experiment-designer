@@ -16,9 +16,14 @@ export function Step3SampleSize() {
     dailyTraffic,
     setDailyTraffic,
     experimentType,
+    aiUpdatedFields,
+    clearAIFieldHighlight,
+    clearAIStepHighlight,
   } = useExperiment()
 
   const { sampleSizeResult, durationEstimate, primaryMetric } = useSampleSize()
+  const isMDEUpdatedByAI = aiUpdatedFields.includes('statisticalParams.mde')
+  const isDailyTrafficUpdatedByAI = aiUpdatedFields.includes('dailyTraffic')
 
   useEffect(() => {
     if (sampleSizeResult) {
@@ -45,6 +50,14 @@ export function Step3SampleSize() {
           Configure statistical parameters to calculate required sample size
         </p>
       </div>
+
+      {(isMDEUpdatedByAI || isDailyTrafficUpdatedByAI) && (
+        <div className="p-3 bg-primary-50 border border-primary-200 rounded-lg">
+          <p className="text-sm text-primary-800">
+            AI updated sample-size inputs in this step. Review the highlighted fields before continuing.
+          </p>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Parameters */}
@@ -111,7 +124,12 @@ export function Step3SampleSize() {
                 step="0.5"
                 min="0.1"
                 value={statisticalParams.mde}
-                onChange={(e) => updateStatisticalParams({ mde: parseFloat(e.target.value) })}
+                className={isMDEUpdatedByAI ? 'ai-updated' : ''}
+                onChange={(e) => {
+                  clearAIFieldHighlight('statisticalParams.mde')
+                  clearAIStepHighlight(3)
+                  updateStatisticalParams({ mde: parseFloat(e.target.value) })
+                }}
                 helperText="Smallest effect you want to detect"
               />
             </div>
@@ -259,7 +277,10 @@ export function Step3SampleSize() {
                 label="Daily Traffic"
                 type="text"
                 value={dailyTraffic.toLocaleString()}
+                className={isDailyTrafficUpdatedByAI ? 'ai-updated' : ''}
                 onChange={(e) => {
+                  clearAIFieldHighlight('dailyTraffic')
+                  clearAIStepHighlight(3)
                   const numericValue = parseInt(e.target.value.replace(/,/g, '')) || 0
                   setDailyTraffic(numericValue)
                 }}

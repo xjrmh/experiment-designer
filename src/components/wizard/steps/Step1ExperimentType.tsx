@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useExperiment } from '@/hooks/useExperiment'
 import { Card } from '@/components/common/Card'
 import { Button } from '@/components/common/Button'
@@ -6,13 +5,14 @@ import { getAllExperimentTemplates } from '@/lib/experimentTemplates'
 import { ExperimentType } from '@/types'
 
 export function Step1ExperimentType() {
-  const { experimentType, setExperimentType, nextStep } = useExperiment()
-  const [selectedType, setSelectedType] = useState<ExperimentType | null>(experimentType)
+  const { experimentType, setExperimentType, nextStep, aiUpdatedFields, clearAIFieldHighlight, clearAIStepHighlight } = useExperiment()
   const templates = getAllExperimentTemplates()
+  const hasAITypeUpdate = aiUpdatedFields.includes('experimentType')
 
   const handleSelect = (type: ExperimentType) => {
-    setSelectedType(type)
     setExperimentType(type)
+    clearAIFieldHighlight('experimentType')
+    clearAIStepHighlight(1)
   }
 
   return (
@@ -29,7 +29,8 @@ export function Step1ExperimentType() {
           <Card
             key={template.type}
             hover
-            selected={selectedType === template.type}
+            selected={experimentType === template.type}
+            className={hasAITypeUpdate && experimentType === template.type ? 'ai-updated' : ''}
             onClick={() => handleSelect(template.type)}
           >
             <div className="flex items-start space-x-4">
@@ -43,17 +44,17 @@ export function Step1ExperimentType() {
         ))}
       </div>
 
-      {selectedType && (
+      {experimentType && (
         <Card className="bg-primary-50 border-primary">
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              {templates.find((t) => t.type === selectedType)?.name}
+              {templates.find((t) => t.type === experimentType)?.name}
             </h3>
 
             <div>
               <h4 className="font-medium text-gray-900 mb-2">When to use:</h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                {templates.find((t) => t.type === selectedType)?.whenToUse.map((item, i) => (
+                {templates.find((t) => t.type === experimentType)?.whenToUse.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
               </ul>
@@ -63,7 +64,7 @@ export function Step1ExperimentType() {
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Pros:</h4>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                  {templates.find((t) => t.type === selectedType)?.pros.map((item, i) => (
+                  {templates.find((t) => t.type === experimentType)?.pros.map((item, i) => (
                     <li key={i}>{item}</li>
                   ))}
                 </ul>
@@ -71,7 +72,7 @@ export function Step1ExperimentType() {
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Cons:</h4>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                  {templates.find((t) => t.type === selectedType)?.cons.map((item, i) => (
+                  {templates.find((t) => t.type === experimentType)?.cons.map((item, i) => (
                     <li key={i}>{item}</li>
                   ))}
                 </ul>
@@ -81,14 +82,14 @@ export function Step1ExperimentType() {
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Examples:</h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                {templates.find((t) => t.type === selectedType)?.examples.map((item, i) => (
+                {templates.find((t) => t.type === experimentType)?.examples.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
               </ul>
             </div>
 
             <Button onClick={nextStep} className="mt-4">
-              Continue with {templates.find((t) => t.type === selectedType)?.name} →
+              Continue with {templates.find((t) => t.type === experimentType)?.name} →
             </Button>
           </div>
         </Card>

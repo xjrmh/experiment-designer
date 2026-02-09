@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { useAIChatStore, DEMO_API_KEY } from '@/store/aiChatStore'
+import { useAIChatStore } from '@/store/aiChatStore'
 import { useExperimentStore } from '@/store/experimentStore'
 import {
   sendChatMessage,
@@ -10,7 +10,7 @@ import {
   type SetStatisticalParamsArgs,
 } from '@/lib/ai/openai'
 import { AIChatMessage } from './AIChatMessage'
-import { ExperimentType, MetricCategory, MetricType, MetricDirection } from '@/types'
+import { ExperimentType, MetricCategory, MetricType, MetricDirection, type TypeSpecificParams } from '@/types'
 
 const GREETING_MESSAGE =
   "Hi! I'm your experiment design assistant. Tell me — what change or feature are you trying to test? I'll help you pick the right experiment type and configure everything."
@@ -19,6 +19,212 @@ const MIN_WIDTH = 340
 const MIN_HEIGHT = 380
 const DEFAULT_WIDTH = 420
 const DEFAULT_HEIGHT = 560
+const DEMO_STAGE_DELAY_MS = 550
+
+const STEP_MAP: Record<string, number> = {
+  set_experiment_type: 1,
+  set_metrics: 2,
+  set_statistical_params: 3,
+  set_experiment_details: 8,
+}
+
+interface DemoMetricPreset {
+  name: string
+  category: MetricCategory
+  type: MetricType
+  direction: MetricDirection
+  baseline: number
+  variance?: number
+}
+
+interface DemoSetupPreset {
+  experimentType: ExperimentType
+  name: string
+  description: string
+  hypothesis: string
+  metrics: DemoMetricPreset[]
+  dailyTraffic: number
+  mde: number
+  typeSpecificParams?: Partial<TypeSpecificParams>
+  completionMessage: string
+}
+
+const SIMPLE_AB_DEMO_PRESET: DemoSetupPreset = {
+  experimentType: ExperimentType.AB_TEST,
+  name: 'Red vs Blue CTA Button Test',
+  description: 'Compare red versus blue primary CTA button designs on the signup page.',
+  hypothesis:
+    'If we change the primary CTA button from blue to red, then signup conversion rate will increase because stronger visual contrast attracts more clicks.',
+  metrics: [
+    {
+      name: 'Signup Conversion Rate',
+      category: MetricCategory.PRIMARY,
+      type: MetricType.BINARY,
+      direction: MetricDirection.INCREASE,
+      baseline: 0.042,
+    },
+    {
+      name: 'CTA Click-Through Rate',
+      category: MetricCategory.MONITOR,
+      type: MetricType.BINARY,
+      direction: MetricDirection.INCREASE,
+      baseline: 0.118,
+    },
+    {
+      name: 'Bounce Rate',
+      category: MetricCategory.GUARDRAIL,
+      type: MetricType.BINARY,
+      direction: MetricDirection.DECREASE,
+      baseline: 0.38,
+    },
+    {
+      name: 'Page Load Time',
+      category: MetricCategory.GUARDRAIL,
+      type: MetricType.CONTINUOUS,
+      direction: MetricDirection.DECREASE,
+      baseline: 1450,
+      variance: 240000,
+    },
+  ],
+  dailyTraffic: 25000,
+  mde: 5,
+  completionMessage:
+    'Demo loaded: simple A/B test (Red vs Blue CTA) with full metrics and defaults. I moved you to Step 8 and scrolled to Export Documentation so you can export immediately.\n\nNext step: Export the preset, or ask me to adjust any metric, traffic, or MDE.',
+}
+
+const COMPLEX_CLUSTER_DEMO_PRESET: DemoSetupPreset = {
+  experimentType: ExperimentType.CLUSTER,
+  name: 'Messaging Chat Feature Rollout (Cluster Network Effects)',
+  description:
+    'Cluster-randomized rollout of a new messaging chat feature where users within a cluster influence each other strongly.',
+  hypothesis:
+    'If we enable the messaging chat feature at cluster level, then messages sent per active user will increase because network effects amplify engagement within treated clusters.',
+  metrics: [
+    {
+      name: 'Messages Sent per Active User',
+      category: MetricCategory.PRIMARY,
+      type: MetricType.COUNT,
+      direction: MetricDirection.INCREASE,
+      baseline: 6.5,
+    },
+    {
+      name: '7-day Retention Rate',
+      category: MetricCategory.MONITOR,
+      type: MetricType.BINARY,
+      direction: MetricDirection.INCREASE,
+      baseline: 0.24,
+    },
+    {
+      name: 'Crash Rate',
+      category: MetricCategory.GUARDRAIL,
+      type: MetricType.BINARY,
+      direction: MetricDirection.DECREASE,
+      baseline: 0.012,
+    },
+    {
+      name: 'Spam Report Rate',
+      category: MetricCategory.GUARDRAIL,
+      type: MetricType.BINARY,
+      direction: MetricDirection.DECREASE,
+      baseline: 0.006,
+    },
+    {
+      name: 'P95 Message Delivery Latency (ms)',
+      category: MetricCategory.GUARDRAIL,
+      type: MetricType.CONTINUOUS,
+      direction: MetricDirection.DECREASE,
+      baseline: 320,
+      variance: 18000,
+    },
+  ],
+  dailyTraffic: 180000,
+  mde: 8,
+  typeSpecificParams: {
+    icc: 0.18,
+    clusterSize: 220,
+  },
+  completionMessage:
+    'Demo loaded: complex cluster experiment for messaging chat with strong network effects and full guardrails. I moved you to Step 8 and scrolled to Export Documentation for immediate export.\n\nNext step: Export this preset, or ask me to tune ICC, traffic, or success metrics.',
+}
+
+type ExperimentSnapshot = ReturnType<typeof useExperimentStore.getState>
+
+function isExperimentSetupComplete(state: ExperimentSnapshot): boolean {
+  const hasPrimaryMetric = state.metrics.some((m) => m.category === MetricCategory.PRIMARY)
+  const hasGuardrailMetric = state.metrics.some((m) => m.category === MetricCategory.GUARDRAIL)
+
+  return (
+    !!state.experimentType &&
+    hasPrimaryMetric &&
+    hasGuardrailMetric &&
+    state.dailyTraffic > 0 &&
+    state.statisticalParams.mde > 0 &&
+    !!state.name &&
+    !!state.hypothesis
+  )
+}
+
+function buildNextActionGuidance(state: ExperimentSnapshot): string {
+  if (!state.experimentType) {
+    return 'Next step: In Step 1, confirm the experiment type so defaults are set correctly. What change are you testing first?'
+  }
+
+  const hasPrimaryMetric = state.metrics.some((m) => m.category === MetricCategory.PRIMARY)
+  if (!hasPrimaryMetric) {
+    return 'Next step: In Step 2, add one PRIMARY success metric (for example conversion rate or revenue per user).'
+  }
+
+  const hasGuardrailMetric = state.metrics.some((m) => m.category === MetricCategory.GUARDRAIL)
+  if (!hasGuardrailMetric) {
+    return 'Next step: In Step 2, add at least one GUARDRAIL metric to catch regressions (for example bounce rate, error rate, or latency).'
+  }
+
+  if (state.dailyTraffic <= 0) {
+    return 'Next step: In Step 3, enter daily traffic so duration and sample size can be estimated.'
+  }
+
+  if (state.statisticalParams.mde <= 0) {
+    return 'Next step: In Step 3, set your MDE target. A practical starting point is usually 5-10% relative.'
+  }
+
+  if (!state.name || !state.hypothesis) {
+    return 'Next step: In Step 8, review the AI-generated name and hypothesis and tweak wording if needed.'
+  }
+
+  return 'Next step: Review Steps 4-7 defaults, then finalize details and export in Step 8.'
+}
+
+function ensureNextActionLine(message: string, nextAction: string): string {
+  const trimmed = message.trim()
+  if (!trimmed) return nextAction
+  if (/next step:/i.test(trimmed)) return trimmed
+  return `${trimmed}\n\n${nextAction}`
+}
+
+function scrollToExportDocumentationSection(maxAttempts = 12) {
+  let attempts = 0
+
+  const attemptScroll = () => {
+    const exportSection = document.getElementById('export-documentation-section')
+    if (exportSection) {
+      exportSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
+    attempts += 1
+    if (attempts < maxAttempts) {
+      window.setTimeout(attemptScroll, 120)
+    }
+  }
+
+  attemptScroll()
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
 
 export function AIChatDialog() {
   const { messages, isOpen, apiKey, isDemo, isLoading, addMessage, setLoading, setApiKey, setDemo, clearMessages, setOpen } =
@@ -29,9 +235,12 @@ export function AIChatDialog() {
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [apiKeyError, setApiKeyError] = useState('')
   const [showOwnKey, setShowOwnKey] = useState(false)
+  const demoRunIdRef = useRef(0)
 
-  const hasDemoKey = !!DEMO_API_KEY
-  const isReady = isDemo ? hasDemoKey : !!apiKey
+  const isReady = isDemo || !!apiKey
+  const hasUserMessage = messages.some((m) => m.role === 'user')
+  const hasConfiguredDemo = messages.some((m) => m.configuredAction?.startsWith('Configured demo:'))
+  const shouldShowConversationDemoOptions = isReady && !hasUserMessage && !hasConfiguredDemo
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -122,80 +331,239 @@ export function AIChatDialog() {
     }
   }, [isOpen, messages.length, isReady, addMessage])
 
-  // Map function names to the wizard step they configure
-  const STEP_MAP: Record<string, number> = {
-    set_experiment_type: 1,
-    set_metrics: 2,
-    set_statistical_params: 3,
-    set_experiment_details: 8,
-  }
-
   const applyFunctionCalls = useCallback(
     (calls: FunctionCall[]): string => {
       const actions: string[] = []
-      let navigateToStep = 0
+      const changedFields = new Set<string>()
+      const changedMetricIds: string[] = []
+      const changedSteps = new Set<number>()
 
       for (const call of calls) {
         const step = STEP_MAP[call.name] ?? 0
+        if (step > 0) changedSteps.add(step)
 
         switch (call.name) {
           case 'set_experiment_type': {
             const args = call.args as SetExperimentTypeArgs
             experimentStore.setExperimentType(args.experimentType as ExperimentType)
+            changedFields.add('experimentType')
             actions.push(`Step ${step}: experiment type → ${args.experimentType.replace('_', ' ')}`)
             break
           }
           case 'set_experiment_details': {
             const args = call.args as SetExperimentDetailsArgs
-            if (args.name) experimentStore.setName(args.name)
-            if (args.hypothesis) experimentStore.setHypothesis(args.hypothesis)
-            if (args.description) experimentStore.setDescription(args.description)
-            actions.push(`Step ${step}: experiment details set`)
+            if (args.name) {
+              experimentStore.setName(args.name)
+              changedFields.add('name')
+              actions.push(`Step ${step}: name set`)
+            }
+            if (args.hypothesis) {
+              experimentStore.setHypothesis(args.hypothesis)
+              changedFields.add('hypothesis')
+              actions.push(`Step ${step}: hypothesis set`)
+            }
+            if (args.description) {
+              experimentStore.setDescription(args.description)
+              changedFields.add('description')
+              actions.push(`Step ${step}: description set`)
+            }
             break
           }
           case 'set_metrics': {
             const args = call.args as SetMetricsArgs
             if (args.metrics?.length) {
               for (const metric of args.metrics) {
-                experimentStore.addMetric({
-                  id: crypto.randomUUID(),
-                  name: metric.name,
-                  category: metric.category as MetricCategory,
-                  type: metric.type as MetricType,
-                  direction: metric.direction as MetricDirection,
-                  baseline: metric.baseline ?? 0,
-                })
+                const existingMetric = useExperimentStore
+                  .getState()
+                  .metrics.find((m) => m.name.trim().toLowerCase() === metric.name.trim().toLowerCase())
+
+                if (existingMetric) {
+                  experimentStore.updateMetric(existingMetric.id, {
+                    category: metric.category as MetricCategory,
+                    type: metric.type as MetricType,
+                    direction: metric.direction as MetricDirection,
+                    baseline: metric.baseline ?? 0,
+                  })
+                  changedMetricIds.push(existingMetric.id)
+                  actions.push(`Step ${step}: metric updated → ${metric.name}`)
+                } else {
+                  const newMetricId = crypto.randomUUID()
+                  experimentStore.addMetric({
+                    id: newMetricId,
+                    name: metric.name,
+                    category: metric.category as MetricCategory,
+                    type: metric.type as MetricType,
+                    direction: metric.direction as MetricDirection,
+                    baseline: metric.baseline ?? 0,
+                  })
+                  changedMetricIds.push(newMetricId)
+                  actions.push(`Step ${step}: metric added → ${metric.name}`)
+                }
               }
-              actions.push(`Step ${step}: ${args.metrics.length} metric(s) added`)
+              changedFields.add('metrics')
             }
             break
           }
           case 'set_statistical_params': {
             const args = call.args as SetStatisticalParamsArgs
-            if (args.mde) {
+            if (typeof args.mde === 'number') {
               experimentStore.updateStatisticalParams({ mde: args.mde })
+              changedFields.add('statisticalParams.mde')
               actions.push(`Step ${step}: MDE → ${args.mde}%`)
             }
-            if (args.dailyTraffic) {
+            if (typeof args.dailyTraffic === 'number') {
               experimentStore.setDailyTraffic(args.dailyTraffic)
+              changedFields.add('dailyTraffic')
               actions.push(`Step ${step}: daily traffic → ${args.dailyTraffic.toLocaleString()}`)
             }
             break
           }
         }
-
-        // Navigate to the highest step that was configured
-        if (step > navigateToStep) navigateToStep = step
       }
 
-      // Navigate wizard to the last configured step
-      if (navigateToStep > 0) {
-        experimentStore.setCurrentStep(navigateToStep)
+      const orderedSteps = Array.from(changedSteps).sort((a, b) => a - b)
+      if (changedFields.size > 0 || changedMetricIds.length > 0 || orderedSteps.length > 0) {
+        experimentStore.markAIUpdates({
+          fields: Array.from(changedFields),
+          metricIds: changedMetricIds,
+          steps: orderedSteps,
+        })
+      }
+
+      const latestState = useExperimentStore.getState()
+      const shouldJumpToSummary = isExperimentSetupComplete(latestState)
+
+      if (shouldJumpToSummary) {
+        experimentStore.setCurrentStep(8)
+        requestAnimationFrame(() => {
+          scrollToExportDocumentationSection()
+        })
+      } else if (orderedSteps.length > 0) {
+        // Jump to the earliest updated step so users see the changed inputs in sequence.
+        experimentStore.setCurrentStep(orderedSteps[0])
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        })
       }
 
       return actions.length > 0 ? `Configured: ${actions.join(' · ')}` : ''
     },
     [experimentStore]
+  )
+
+  const applyDemoSetupPreset = useCallback(
+    async (preset: DemoSetupPreset) => {
+      const runId = Date.now()
+      demoRunIdRef.current = runId
+
+      const isStaleRun = () => demoRunIdRef.current !== runId
+
+      setLoading(true)
+      try {
+        experimentStore.reset()
+        experimentStore.clearAIHighlights()
+
+        clearMessages()
+        if (!isDemo && !apiKey) {
+          setDemo(true)
+        }
+
+        addMessage({
+          role: 'assistant',
+          content: `Great choice. I’ll run this demo setup step by step so you can review each stage.\n\nNext step: I’m starting with Step 1 (experiment type).`,
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        experimentStore.setExperimentType(preset.experimentType)
+        experimentStore.markAIUpdates({
+          fields: ['experimentType'],
+          steps: [1],
+        })
+        experimentStore.setCurrentStep(1)
+        addMessage({
+          role: 'assistant',
+          content: `Step 1 complete: set experiment type to ${preset.experimentType.replace('_', ' ')}.\n\nNext step: I’ll configure Step 2 metrics.`,
+          configuredAction: `Configured: Step 1: experiment type → ${preset.experimentType.replace('_', ' ')}`,
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        const demoMetricIds: string[] = []
+        for (const metric of preset.metrics) {
+          const metricId = crypto.randomUUID()
+          demoMetricIds.push(metricId)
+          experimentStore.addMetric({
+            id: metricId,
+            name: metric.name,
+            category: metric.category,
+            type: metric.type,
+            direction: metric.direction,
+            baseline: metric.baseline,
+            variance: metric.variance,
+          })
+        }
+
+        experimentStore.markAIUpdates({
+          fields: ['metrics'],
+          metricIds: demoMetricIds,
+          steps: [2],
+        })
+        experimentStore.setCurrentStep(2)
+        addMessage({
+          role: 'assistant',
+          content: `Step 2 complete: added ${preset.metrics.length} metrics including primary and guardrails.\n\nNext step: I’ll set traffic and MDE in Step 3.`,
+          configuredAction: `Configured: Step 2: ${preset.metrics.length} metric(s) added`,
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        experimentStore.updateStatisticalParams({ mde: preset.mde })
+        experimentStore.setDailyTraffic(preset.dailyTraffic)
+        if (preset.typeSpecificParams) {
+          experimentStore.updateTypeSpecificParams(preset.typeSpecificParams)
+        }
+        experimentStore.markAIUpdates({
+          fields: ['statisticalParams.mde', 'dailyTraffic'],
+          steps: [3],
+        })
+        experimentStore.setCurrentStep(3)
+        addMessage({
+          role: 'assistant',
+          content: `Step 3 complete: set daily traffic to ${preset.dailyTraffic.toLocaleString()} and MDE to ${preset.mde}%.\n\nNext step: I’ll finish details in Step 8.`,
+          configuredAction: `Configured: Step 3: MDE → ${preset.mde}% · daily traffic → ${preset.dailyTraffic.toLocaleString()}`,
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        experimentStore.setName(preset.name)
+        experimentStore.setDescription(preset.description)
+        experimentStore.setHypothesis(preset.hypothesis)
+        experimentStore.markAIUpdates({
+          fields: ['name', 'description', 'hypothesis'],
+          steps: [8],
+        })
+        experimentStore.setCurrentStep(8)
+        requestAnimationFrame(() => {
+          scrollToExportDocumentationSection()
+        })
+
+        addMessage({
+          role: 'assistant',
+          content: preset.completionMessage,
+          configuredAction: `Configured demo: ${preset.name}`,
+        })
+      } finally {
+        if (!isStaleRun()) {
+          setLoading(false)
+        }
+      }
+    },
+    [experimentStore, clearMessages, setDemo, addMessage, isDemo, apiKey, setLoading]
   )
 
   const handleSend = useCallback(
@@ -216,7 +584,17 @@ export function AIChatDialog() {
 
         const response = await sendChatMessage(apiKey, isDemo, allMessages, {
           experimentType: experimentStore.experimentType,
-          metricsCount: experimentStore.metrics.length,
+          name: experimentStore.name || '',
+          hypothesis: experimentStore.hypothesis || '',
+          metrics: experimentStore.metrics.map((m) => ({
+            name: m.name,
+            category: m.category,
+            type: m.type,
+            baseline: m.baseline,
+          })),
+          dailyTraffic: experimentStore.dailyTraffic,
+          mde: experimentStore.statisticalParams.mde,
+          hasSampleSizeResult: !!experimentStore.sampleSizeResult,
           currentStep: experimentStore.currentStep,
         })
 
@@ -225,11 +603,13 @@ export function AIChatDialog() {
           configAction = applyFunctionCalls(response.functionCalls)
         }
 
-        const aiText =
+        const rawAiText =
           response.message ||
           (response.functionCalls.length > 0
             ? "I've updated your experiment configuration. Check the wizard to review what's been set up!"
             : '')
+        const nextAction = buildNextActionGuidance(useExperimentStore.getState())
+        const aiText = ensureNextActionLine(rawAiText, nextAction)
 
         if (aiText) {
           addMessage({
@@ -371,27 +751,41 @@ export function AIChatDialog() {
           </div>
 
           <div className="w-full space-y-3">
-            {hasDemoKey && (
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Demo Setup Templates
+              </div>
               <button
-                onClick={() => {
-                  setDemo(true)
-                  setApiKey('')
-                }}
+                onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary bg-primary-50 hover:bg-primary-100 transition-colors text-left"
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-white shrink-0">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Try Demo</div>
-                  <div className="text-xs text-gray-500">Start immediately, no setup needed</div>
+                  <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
+                  <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
                 </div>
               </button>
-            )}
+              <button
+                onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
+                  <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
+                </div>
+              </button>
+            </div>
 
-            {!hasDemoKey || showOwnKey ? (
+            {showOwnKey ? (
               <form onSubmit={handleSaveApiKey} className="w-full space-y-2">
                 <input
                   type="password"
@@ -436,6 +830,24 @@ export function AIChatDialog() {
             {messages.map((msg) => (
               <AIChatMessage key={msg.id} message={msg} />
             ))}
+            {shouldShowConversationDemoOptions && (
+              <div className="ml-1 mb-1 w-full max-w-[250px] space-y-1.5">
+                <button
+                  onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
+                  className="w-full text-left px-2.5 py-1.5 rounded-md border border-primary-200 bg-primary-50 hover:bg-primary-100 transition-colors"
+                >
+                  <div className="text-xs font-semibold text-gray-900">Simple Demo</div>
+                  <div className="text-[11px] text-gray-500">Red vs Blue button A/B test</div>
+                </button>
+                <button
+                  onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
+                  className="w-full text-left px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="text-xs font-semibold text-gray-900">Complex Demo</div>
+                  <div className="text-[11px] text-gray-500">Cluster messaging test with network effects</div>
+                </button>
+              </div>
+            )}
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">

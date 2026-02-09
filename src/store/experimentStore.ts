@@ -23,6 +23,9 @@ import { EXPERIMENT_TEMPLATES } from '@/constants/experimentTypes'
 interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'updatedAt'> {
   currentStep: number
   dailyTraffic: number
+  aiUpdatedFields: string[]
+  aiUpdatedMetricIds: string[]
+  aiUpdatedSteps: number[]
   // Actions
   setCurrentStep: (step: number) => void
   setExperimentType: (type: ExperimentType) => void
@@ -42,6 +45,11 @@ interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'u
   updateRiskAssessment: (assessment: Partial<RiskAssessment>) => void
   updateMonitoring: (config: Partial<MonitoringConfig>) => void
   toggleChecklistItem: (id: string) => void
+  markAIUpdates: (payload: { fields?: string[]; metricIds?: string[]; steps?: number[] }) => void
+  clearAIFieldHighlight: (field: string) => void
+  clearAIMetricHighlight: (metricId: string) => void
+  clearAIStepHighlight: (step: number) => void
+  clearAIHighlights: () => void
   reset: () => void
   nextStep: () => void
   previousStep: () => void
@@ -66,6 +74,9 @@ const initialState = {
   sampleSizeResult: null,
   durationEstimate: null,
   dailyTraffic: 10000,
+  aiUpdatedFields: [],
+  aiUpdatedMetricIds: [],
+  aiUpdatedSteps: [],
   randomization: {
     unit: 'USER_ID' as RandomizationUnit,
     bucketingStrategy: 'HASH_BASED' as BucketingStrategy,
@@ -215,6 +226,35 @@ export const useExperimentStore = create<ExperimentState>()(
             ),
           },
         })),
+
+      markAIUpdates: ({ fields = [], metricIds = [], steps = [] }) =>
+        set({
+          aiUpdatedFields: Array.from(new Set(fields)),
+          aiUpdatedMetricIds: Array.from(new Set(metricIds)),
+          aiUpdatedSteps: Array.from(new Set(steps)).sort((a, b) => a - b),
+        }),
+
+      clearAIFieldHighlight: (field) =>
+        set((state) => ({
+          aiUpdatedFields: state.aiUpdatedFields.filter((f) => f !== field),
+        })),
+
+      clearAIMetricHighlight: (metricId) =>
+        set((state) => ({
+          aiUpdatedMetricIds: state.aiUpdatedMetricIds.filter((id) => id !== metricId),
+        })),
+
+      clearAIStepHighlight: (step) =>
+        set((state) => ({
+          aiUpdatedSteps: state.aiUpdatedSteps.filter((s) => s !== step),
+        })),
+
+      clearAIHighlights: () =>
+        set({
+          aiUpdatedFields: [],
+          aiUpdatedMetricIds: [],
+          aiUpdatedSteps: [],
+        }),
 
       nextStep: () =>
         set((state) => ({

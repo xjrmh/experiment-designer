@@ -12,7 +12,7 @@ const STEPS = [
 ]
 
 export function WizardProgress() {
-  const { currentStep, setCurrentStep } = useExperiment()
+  const { currentStep, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = useExperiment()
 
   return (
     <div>
@@ -25,18 +25,23 @@ export function WizardProgress() {
               const isCompleted = currentStep > step.number
               const isCurrent = currentStep === step.number
               const isPending = currentStep < step.number
+              const isAIUpdated = aiUpdatedSteps.includes(step.number)
 
               return (
                 <div key={step.number} className="flex flex-col items-center justify-start">
                   {/* Circle */}
                   <button
-                    onClick={() => setCurrentStep(step.number)}
+                    onClick={() => {
+                      setCurrentStep(step.number)
+                      clearAIStepHighlight(step.number)
+                    }}
                     className={`
                       relative flex items-center justify-center w-8 h-8 rounded-full font-semibold text-xs
                       transition-all duration-200 hover:scale-105
                       ${isCurrent ? 'bg-primary text-white shadow-md ring-2 ring-primary-100' : ''}
                       ${isCompleted ? 'bg-success text-white shadow-sm' : ''}
                       ${isPending ? 'bg-white border-2 border-gray-300 text-gray-500' : ''}
+                      ${isAIUpdated ? 'ring-1 ring-primary-200 ring-offset-2 ring-offset-white shadow-[0_0_0_4px_rgba(59,130,246,0.06)]' : ''}
                     `}
                   >
                     {isCompleted ? (
@@ -45,6 +50,9 @@ export function WizardProgress() {
                       </svg>
                     ) : (
                       step.number
+                    )}
+                    {isAIUpdated && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary-500 ring-2 ring-white" />
                     )}
                   </button>
 
@@ -71,20 +79,28 @@ export function WizardProgress() {
           {STEPS.map((step, index) => {
             const isCompleted = currentStep > step.number
             const isCurrent = currentStep === step.number
+            const isAIUpdated = aiUpdatedSteps.includes(step.number)
 
             return (
               <div key={step.number} className="flex items-center">
                 <button
-                  onClick={() => setCurrentStep(step.number)}
+                  onClick={() => {
+                    setCurrentStep(step.number)
+                    clearAIStepHighlight(step.number)
+                  }}
                   className={`
-                    flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold
+                    relative flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold
                     transition-all duration-300
                     ${isCurrent ? 'bg-primary text-white shadow-md' : ''}
                     ${isCompleted ? 'bg-success text-white' : ''}
                     ${!isCurrent && !isCompleted ? 'bg-gray-200 text-gray-500' : ''}
+                    ${isAIUpdated ? 'ring-1 ring-primary-200 ring-offset-1 ring-offset-white shadow-[0_0_0_3px_rgba(59,130,246,0.06)]' : ''}
                   `}
                 >
                   {isCompleted ? '✓' : step.number}
+                  {isAIUpdated && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary-500 ring-2 ring-white" />
+                  )}
                 </button>
                 {index < STEPS.length - 1 && (
                   <div className={`w-2 h-0.5 mx-1 ${isCompleted ? 'bg-success' : 'bg-gray-200'}`} />

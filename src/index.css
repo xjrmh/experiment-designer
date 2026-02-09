@@ -33,6 +33,11 @@
     @apply bg-white/80 backdrop-blur-sm;
   }
 
+  .ai-updated {
+    @apply border-primary-400 ring-2 ring-primary-200 bg-primary-50/60;
+    animation: aiHighlight 1.4s ease-in-out 2;
+  }
+
   @keyframes slideIn {
     from {
       transform: translateX(400px);
@@ -46,5 +51,17 @@
 
   .animate-slideIn {
     animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes aiHighlight {
+    0% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.05);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
   }
 }

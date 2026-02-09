@@ -1,7 +1,9 @@
-import { buildSystemPrompt, AI_TOOL_FUNCTIONS } from './systemPrompt'
+import { buildSystemPrompt, AI_TOOL_FUNCTIONS, type ExperimentState } from './systemPrompt'
 import type { ChatMessage } from '@/store/aiChatStore'
-import { DEMO_API_KEY } from '@/store/aiChatStore'
 import type { ExperimentType, MetricCategory, MetricType, MetricDirection } from '@/types'
+
+const CHAT_MODEL = 'gpt-4o-mini'
+const CHAT_TEMPERATURE = 0.85
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant'
@@ -50,26 +52,12 @@ export interface AIResponse {
   functionCalls: FunctionCall[]
 }
 
-export function getEffectiveApiKey(userKey: string, isDemo: boolean): string {
-  if (isDemo && DEMO_API_KEY) return DEMO_API_KEY
-  return userKey
-}
-
 export async function sendChatMessage(
   apiKey: string,
   isDemo: boolean,
   messages: ChatMessage[],
-  currentState: {
-    experimentType: ExperimentType | null
-    metricsCount: number
-    currentStep: number
-  }
+  currentState: ExperimentState
 ): Promise<AIResponse> {
-  const effectiveKey = getEffectiveApiKey(apiKey, isDemo)
-  if (!effectiveKey) {
-    throw new Error('No API key available.')
-  }
-
   const systemPrompt = buildSystemPrompt(currentState)
 
   const openaiMessages: OpenAIMessage[] = [
@@ -82,31 +70,59 @@ export async function sendChatMessage(
       })),
   ]
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${effectiveKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: openaiMessages,
-      tools: AI_TOOL_FUNCTIONS,
-      tool_choice: 'auto',
-      temperature: 0.7,
-      max_tokens: 1024,
-    }),
-  })
+  let data: any
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    if (response.status === 401) {
-      throw new Error('Invalid API key. Please check your OpenAI API key and try again.')
+  if (isDemo) {
+    // Route through Vercel serverless proxy — API key stays server-side
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: openaiMessages,
+        tools: AI_TOOL_FUNCTIONS,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.error?.message || error.error || `API error: ${response.status}`)
     }
-    throw new Error(error.error?.message || `OpenAI API error: ${response.status}`)
+
+    data = await response.json()
+  } else {
+    // Direct call with user's own API key
+    if (!apiKey) {
+      throw new Error('No API key available.')
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: CHAT_MODEL,
+        messages: openaiMessages,
+        tools: AI_TOOL_FUNCTIONS,
+        tool_choice: 'auto',
+        temperature: CHAT_TEMPERATURE,
+        max_tokens: 1024,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})
+      )
+      if (response.status === 401) {
+        throw new Error('Invalid API key. Please check your OpenAI API key and try again.')
+      }
+      throw new Error(error.error?.message || `OpenAI API error: ${response.status}`)
+    }
+
+    data = await response.json()
   }
 
-  const data = await response.json()
   const choice = data.choices?.[0]
 
   if (!choice) {

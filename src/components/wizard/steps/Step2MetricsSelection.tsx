@@ -25,7 +25,18 @@ function getMetricGuidance(experimentType: ExperimentType | null): { message: st
 }
 
 export function Step2MetricsSelection() {
-  const { metrics, addMetric, removeMetric, updateMetric, experimentType } = useExperiment()
+  const {
+    metrics,
+    addMetric,
+    removeMetric,
+    updateMetric,
+    experimentType,
+    aiUpdatedFields,
+    aiUpdatedMetricIds,
+    clearAIFieldHighlight,
+    clearAIMetricHighlight,
+    clearAIStepHighlight,
+  } = useExperiment()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +50,8 @@ export function Step2MetricsSelection() {
   const handleAddMetric = () => {
     const newMetric = createMetric(formData)
     addMetric(newMetric)
+    clearAIFieldHighlight('metrics')
+    clearAIStepHighlight(2)
     setShowForm(false)
     setFormData({
       name: '',
@@ -53,9 +66,12 @@ export function Step2MetricsSelection() {
   const handleAddCommonMetric = (metricTemplate: Partial<Metric>) => {
     const newMetric = createMetric(metricTemplate)
     addMetric(newMetric)
+    clearAIFieldHighlight('metrics')
+    clearAIStepHighlight(2)
   }
 
   const primaryCount = metrics.filter((m) => m.category === MetricCategory.PRIMARY).length
+  const metricsUpdatedByAI = aiUpdatedFields.includes('metrics')
 
   return (
     <div className="space-y-6">
@@ -88,6 +104,14 @@ export function Step2MetricsSelection() {
         </div>
       )}
 
+      {metricsUpdatedByAI && (
+        <div className="p-3 bg-primary-50 border border-primary-200 rounded-lg">
+          <p className="text-sm text-primary-800">
+            AI updated metrics in this step. Review highlighted rows and adjust if needed.
+          </p>
+        </div>
+      )}
+
       {/* Current Metrics */}
       {metrics.length > 0 && (
         <div className="space-y-3">
@@ -108,6 +132,9 @@ export function Step2MetricsSelection() {
             }
 
             const toggleCategory = () => {
+              clearAIMetricHighlight(metric.id)
+              clearAIFieldHighlight('metrics')
+              clearAIStepHighlight(2)
               if (metric.category === MetricCategory.PRIMARY) {
                 updateMetric(metric.id, { category: MetricCategory.GUARDRAIL })
               } else if (metric.category === MetricCategory.GUARDRAIL) {
@@ -118,7 +145,10 @@ export function Step2MetricsSelection() {
             }
 
             return (
-              <Card key={metric.id} className="flex items-start justify-between">
+              <Card
+                key={metric.id}
+                className={`flex items-start justify-between ${aiUpdatedMetricIds.includes(metric.id) ? 'ai-updated' : ''}`}
+              >
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <h4 className="font-medium text-gray-900">{metric.name}</h4>
@@ -137,7 +167,16 @@ export function Step2MetricsSelection() {
                     Click category badge to toggle: Primary → Guardrail → Monitor
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => removeMetric(metric.id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    clearAIMetricHighlight(metric.id)
+                    clearAIFieldHighlight('metrics')
+                    clearAIStepHighlight(2)
+                    removeMetric(metric.id)
+                  }}
+                >
                   Remove
                 </Button>
               </Card>
