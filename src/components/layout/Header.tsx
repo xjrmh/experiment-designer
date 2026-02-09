@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { AIChatButton } from '../ai/AIChatButton'
 
 const BUBBLES = ['🔬', '⚗️', '🧬', '💊', '📊', '✨', '🎯', '📈', '🧫', '💡']
 
@@ -65,15 +66,11 @@ export function Header() {
               ))}
             </button>
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Experiment Designer</h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200">
-                  AI mode coming soon
-                </span>
-              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Experiment Designer</h1>
               <p className="text-sm text-gray-600 mt-0.5 hidden sm:block">Design, calculate, and document your experiments</p>
             </div>
           </div>
+          <AIChatButton />
         </div>
       </div>
     </header>

@@ -2,6 +2,7 @@ import { Header } from './components/layout/Header'
 import { Footer } from './components/layout/Footer'
 import { WizardContainer } from './components/wizard/WizardContainer'
 import { WizardProgress } from './components/wizard/WizardProgress'
+import { AIChatDialog } from './components/ai/AIChatDialog'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         </div>
       </main>
       <Footer />
+      <AIChatDialog />
     </div>
   )
 }
