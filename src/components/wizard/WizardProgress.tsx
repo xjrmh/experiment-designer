@@ -12,7 +12,7 @@ const STEPS = [
 ]
 
 export function WizardProgress() {
-  const { currentStep, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = useExperiment()
+  const { currentStep, furthestStep, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = useExperiment()
 
   return (
     <div>
@@ -22,9 +22,9 @@ export function WizardProgress() {
           {/* Step Circles and Labels */}
           <div className="grid grid-cols-8 gap-1">
             {STEPS.map((step) => {
-              const isCompleted = currentStep > step.number
               const isCurrent = currentStep === step.number
-              const isPending = currentStep < step.number
+              const isCompleted = !isCurrent && furthestStep > step.number
+              const isPending = !isCurrent && !isCompleted
               const isAIUpdated = aiUpdatedSteps.includes(step.number)
 
               return (
@@ -77,9 +77,10 @@ export function WizardProgress() {
       <div className="lg:hidden">
         <div className="flex items-center justify-between mb-4">
           {STEPS.map((step, index) => {
-            const isCompleted = currentStep > step.number
             const isCurrent = currentStep === step.number
+            const isCompleted = !isCurrent && furthestStep > step.number
             const isAIUpdated = aiUpdatedSteps.includes(step.number)
+            const isConnectorCompleted = furthestStep > step.number
 
             return (
               <div key={step.number} className="flex items-center">
@@ -103,7 +104,7 @@ export function WizardProgress() {
                   )}
                 </button>
                 {index < STEPS.length - 1 && (
-                  <div className={`w-2 h-0.5 mx-1 ${isCompleted ? 'bg-success' : 'bg-gray-200'}`} />
+                  <div className={`w-2 h-0.5 mx-1 ${isConnectorCompleted ? 'bg-success' : 'bg-gray-200'}`} />
                 )}
               </div>
             )

@@ -22,6 +22,7 @@ import { EXPERIMENT_TEMPLATES } from '@/constants/experimentTypes'
 
 interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'updatedAt'> {
   currentStep: number
+  furthestStep: number
   dailyTraffic: number
   aiUpdatedFields: string[]
   aiUpdatedMetricIds: string[]
@@ -57,6 +58,7 @@ interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'u
 
 const initialState = {
   currentStep: 1,
+  furthestStep: 1,
   name: '',
   description: '',
   hypothesis: '',
@@ -129,7 +131,11 @@ export const useExperimentStore = create<ExperimentState>()(
     (set) => ({
       ...initialState,
 
-      setCurrentStep: (step) => set({ currentStep: step }),
+      setCurrentStep: (step) =>
+        set((state) => ({
+          currentStep: step,
+          furthestStep: Math.max(state.furthestStep, step),
+        })),
 
       setExperimentType: (type) =>
         set((state) => {
@@ -259,6 +265,7 @@ export const useExperimentStore = create<ExperimentState>()(
       nextStep: () =>
         set((state) => ({
           currentStep: Math.min(state.currentStep + 1, 8),
+          furthestStep: Math.max(state.furthestStep, Math.min(state.currentStep + 1, 8)),
         })),
 
       previousStep: () =>

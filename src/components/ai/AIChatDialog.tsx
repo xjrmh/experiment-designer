@@ -235,14 +235,13 @@ export function AIChatDialog() {
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [apiKeyError, setApiKeyError] = useState('')
   const [showOwnKey, setShowOwnKey] = useState(false)
-  const [starterPromptDismissed, setStarterPromptDismissed] = useState(false)
-  const [hasSelectedTryYourself, setHasSelectedTryYourself] = useState(false)
+  const [showSetupScreen, setShowSetupScreen] = useState(false)
+  const [hasCompletedPresetDemo, setHasCompletedPresetDemo] = useState(false)
   const demoRunIdRef = useRef(0)
 
   const isReady = isDemo || !!apiKey
-  const hasUserMessage = messages.some((m) => m.role === 'user')
-  const hasConfiguredDemo = messages.some((m) => m.configuredAction?.startsWith('Configured demo:'))
-  const shouldShowConversationDemoOptions = isReady && !hasUserMessage && !hasConfiguredDemo && !starterPromptDismissed
+  const isSetupScreenVisible = showSetupScreen || !isReady
+  const shouldHighlightTryYourself = hasCompletedPresetDemo
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -321,17 +320,17 @@ export function AIChatDialog() {
 
   // Focus input when dialog opens
   useEffect(() => {
-    if (isOpen && isReady) {
+    if (isOpen && isReady && !isSetupScreenVisible) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
-  }, [isOpen, isReady])
+  }, [isOpen, isReady, isSetupScreenVisible])
 
   // Add greeting when first opened with no messages
   useEffect(() => {
-    if (isOpen && messages.length === 0 && isReady) {
+    if (isOpen && messages.length === 0 && isReady && !isSetupScreenVisible) {
       addMessage({ role: 'assistant', content: GREETING_MESSAGE })
     }
-  }, [isOpen, messages.length, isReady, addMessage])
+  }, [isOpen, messages.length, isReady, isSetupScreenVisible, addMessage])
 
   const applyFunctionCalls = useCallback(
     (calls: FunctionCall[]): string => {
@@ -461,7 +460,7 @@ export function AIChatDialog() {
       const isStaleRun = () => demoRunIdRef.current !== runId
 
       setLoading(true)
-      setStarterPromptDismissed(true)
+      setShowSetupScreen(false)
       try {
         experimentStore.reset()
         experimentStore.clearAIHighlights()
@@ -560,6 +559,7 @@ export function AIChatDialog() {
           content: preset.completionMessage,
           configuredAction: `Configured demo: ${preset.name}`,
         })
+        setHasCompletedPresetDemo(true)
       } finally {
         if (!isStaleRun()) {
           setLoading(false)
@@ -569,11 +569,8 @@ export function AIChatDialog() {
     [experimentStore, clearMessages, setDemo, addMessage, isDemo, apiKey, setLoading]
   )
 
-  const startSelfGuidedDemo = useCallback((source: 'setup' | 'thread' = 'thread') => {
-    setStarterPromptDismissed(true)
-    if (source === 'setup') {
-      setHasSelectedTryYourself(true)
-    }
+  const startSelfGuidedDemo = useCallback(() => {
+    setShowSetupScreen(false)
     if (!isDemo && !apiKey) {
       setDemo(true)
       setApiKey('')
@@ -658,6 +655,7 @@ export function AIChatDialog() {
     setApiKey(trimmed)
     setApiKeyInput('')
     setApiKeyError('')
+    setShowSetupScreen(false)
   }
 
   if (!isOpen) return null
@@ -720,9 +718,13 @@ export function AIChatDialog() {
           {isReady && messages.length > 0 && (
             <button
               onClick={() => {
-                setStarterPromptDismissed(false)
+                demoRunIdRef.current = Date.now()
+                setLoading(false)
+                setShowSetupScreen(true)
+                setShowOwnKey(false)
+                setApiKeyInput('')
+                setApiKeyError('')
                 clearMessages()
-                addMessage({ role: 'assistant', content: GREETING_MESSAGE })
               }}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
               title="New conversation"
@@ -748,7 +750,7 @@ export function AIChatDialog() {
       </div>
 
       {/* Body */}
-      {!isReady ? (
+      {isSetupScreenVisible ? (
         /* Setup Screen */
         <div className="flex-1 flex flex-col items-center justify-center p-6 gap-5">
           <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
@@ -768,9 +770,17 @@ export function AIChatDialog() {
           <div className="w-full space-y-2">
             <button
               onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary bg-primary-50 hover:bg-primary-100 transition-colors text-left"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                shouldHighlightTryYourself
+                  ? 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  : 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
+              }`}
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-white shrink-0">
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+                  shouldHighlightTryYourself ? 'bg-gray-100 text-gray-700' : 'bg-primary text-white'
+                }`}
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
                 </svg>
@@ -795,16 +805,24 @@ export function AIChatDialog() {
               </div>
             </button>
             <button
-              onClick={() => startSelfGuidedDemo('setup')}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+              onClick={() => startSelfGuidedDemo()}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                shouldHighlightTryYourself
+                  ? 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
+                  : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+                  shouldHighlightTryYourself ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'
+                }`}
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
                 </svg>
               </div>
               <div>
-                <div className="text-sm font-semibold text-gray-900">Demo Yourself</div>
+                <div className="text-sm font-semibold text-gray-900">Try it yourself</div>
                 <div className="text-xs text-gray-500">Start demo mode without a template</div>
               </div>
             </button>
@@ -854,33 +872,6 @@ export function AIChatDialog() {
             {messages.map((msg) => (
               <AIChatMessage key={msg.id} message={msg} />
             ))}
-            {shouldShowConversationDemoOptions && (
-              <div className="ml-1 mb-1 w-full max-w-[250px] space-y-1.5">
-                <button
-                  onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-md border border-primary-200 bg-primary-50 hover:bg-primary-100 transition-colors"
-                >
-                  <div className="text-xs font-semibold text-gray-900">Simple Demo</div>
-                  <div className="text-[11px] text-gray-500">Red vs Blue button A/B test</div>
-                </button>
-                <button
-                  onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="text-xs font-semibold text-gray-900">Complex Demo</div>
-                  <div className="text-[11px] text-gray-500">Cluster messaging test with network effects</div>
-                </button>
-                {!hasSelectedTryYourself && (
-                  <button
-                    onClick={() => startSelfGuidedDemo('thread')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="text-xs font-semibold text-gray-900">Demo Yourself</div>
-                    <div className="text-[11px] text-gray-500">Skip templates and start chatting</div>
-                  </button>
-                )}
-              </div>
-            )}
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
