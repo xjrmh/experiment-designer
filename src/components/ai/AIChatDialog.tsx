@@ -752,117 +752,119 @@ export function AIChatDialog() {
       {/* Body */}
       {isSetupScreenVisible ? (
         /* Setup Screen */
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-5">
-          <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
-            <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
-              />
-            </svg>
-          </div>
-          <div className="text-center">
-            <h3 className="font-semibold text-gray-900">AI Experiment Assistant</h3>
-            <p className="text-xs text-gray-500 mt-1">Get real-time guided help designing your experiment with AI.</p>
-          </div>
-
-          <div className="w-full space-y-2">
-            <button
-              onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
-                shouldHighlightTryYourself
-                  ? 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  : 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
-              }`}
-            >
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                  shouldHighlightTryYourself ? 'bg-gray-100 text-gray-700' : 'bg-primary text-white'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
-                <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
-              </div>
-            </button>
-            <button
-              onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
-                <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
-              </div>
-            </button>
-            <button
-              onClick={() => startSelfGuidedDemo()}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
-                shouldHighlightTryYourself
-                  ? 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
-                  : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                  shouldHighlightTryYourself ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Try it yourself</div>
-                <div className="text-xs text-gray-500">Start demo mode without a template</div>
-              </div>
-            </button>
-
-            {showOwnKey ? (
-              <form onSubmit={handleSaveApiKey} className="w-full space-y-2">
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => {
-                    setApiKeyInput(e.target.value)
-                    setApiKeyError('')
-                  }}
-                  placeholder="sk-..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="min-h-full flex flex-col items-center justify-start gap-5">
+            <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
+              <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
                 />
-                {apiKeyError && <p className="text-xs text-red-500">{apiKeyError}</p>}
-                <button
-                  type="submit"
-                  className="w-full px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-600 transition-colors shadow-sm hover:shadow-md"
-                >
-                  Connect
-                </button>
-              </form>
-            ) : (
+              </svg>
+            </div>
+            <div className="text-center">
+              <h3 className="font-semibold text-gray-900">AI Experiment Assistant</h3>
+              <p className="text-xs text-gray-500 mt-1">Get real-time guided help designing your experiment with AI.</p>
+            </div>
+
+            <div className="w-full space-y-2">
               <button
-                onClick={() => setShowOwnKey(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+                onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                  shouldHighlightTryYourself
+                    ? 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
+                }`}
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 shrink-0">
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+                    shouldHighlightTryYourself ? 'bg-gray-100 text-gray-700' : 'bg-primary text-white'
+                  }`}
+                >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Use Your Own Key</div>
-                  <div className="text-xs text-gray-500">Connect your OpenAI API key</div>
+                  <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
+                  <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
                 </div>
               </button>
-            )}
+              <button
+                onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
+                  <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
+                </div>
+              </button>
+              <button
+                onClick={() => startSelfGuidedDemo()}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                  shouldHighlightTryYourself
+                    ? 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
+                    : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+                    shouldHighlightTryYourself ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Try it yourself</div>
+                  <div className="text-xs text-gray-500">Start demo mode without a template</div>
+                </div>
+              </button>
+
+              {showOwnKey ? (
+                <form onSubmit={handleSaveApiKey} className="w-full space-y-2">
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => {
+                      setApiKeyInput(e.target.value)
+                      setApiKeyError('')
+                    }}
+                    placeholder="sk-..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                  />
+                  {apiKeyError && <p className="text-xs text-red-500">{apiKeyError}</p>}
+                  <button
+                    type="submit"
+                    className="w-full px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-600 transition-colors shadow-sm hover:shadow-md"
+                  >
+                    Connect
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowOwnKey(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 shrink-0">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Use Your Own Key</div>
+                    <div className="text-xs text-gray-500">Connect your OpenAI API key</div>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ) : (
