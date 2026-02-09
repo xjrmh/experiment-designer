@@ -26,8 +26,6 @@ interface AIChatState {
   clearMessages: () => void
 }
 
-export const DEMO_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
-
 export const useAIChatStore = create<AIChatState>()(
   persist(
     (set) => ({
