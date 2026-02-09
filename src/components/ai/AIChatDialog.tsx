@@ -762,57 +762,52 @@ export function AIChatDialog() {
           </div>
           <div className="text-center">
             <h3 className="font-semibold text-gray-900">AI Experiment Assistant</h3>
-            <p className="text-xs text-gray-500 mt-1">Get help designing your experiment with AI-powered recommendations.</p>
+            <p className="text-xs text-gray-500 mt-1">Get real-time guided help designing your experiment with AI.</p>
           </div>
 
-          <div className="w-full space-y-3">
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Demo Setup Templates
+          <div className="w-full space-y-2">
+            <button
+              onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary bg-primary-50 hover:bg-primary-100 transition-colors text-left"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-white shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
+                </svg>
               </div>
-              <button
-                onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary bg-primary-50 hover:bg-primary-100 transition-colors text-left"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-white shrink-0">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
-                  <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
-                </div>
-              </button>
-              <button
-                onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
-                  <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
-                </div>
-              </button>
-              <button
-                onClick={() => startSelfGuidedDemo('setup')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Demo Yourself</div>
-                  <div className="text-xs text-gray-500">Start demo mode without a template</div>
-                </div>
-              </button>
-            </div>
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
+                <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
+              </div>
+            </button>
+            <button
+              onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
+                <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
+              </div>
+            </button>
+            <button
+              onClick={() => startSelfGuidedDemo('setup')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Demo Yourself</div>
+                <div className="text-xs text-gray-500">Start demo mode without a template</div>
+              </div>
+            </button>
 
             {showOwnKey ? (
               <form onSubmit={handleSaveApiKey} className="w-full space-y-2">
