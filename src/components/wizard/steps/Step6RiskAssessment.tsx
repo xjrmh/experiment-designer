@@ -77,7 +77,7 @@ export function Step6RiskAssessment() {
                 Rollback Triggers
               </label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={3}
                 placeholder="e.g., Error rate > 5%, Revenue drop > 10%"
               />
@@ -88,7 +88,7 @@ export function Step6RiskAssessment() {
                 Circuit Breakers
               </label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={3}
                 placeholder="e.g., Auto-rollback if critical errors detected"
               />

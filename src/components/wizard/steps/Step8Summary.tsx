@@ -108,7 +108,7 @@ export function Step8Summary() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isDescriptionUpdatedByAI ? 'ai-updated' : ''}`}
+                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isDescriptionUpdatedByAI ? 'ai-updated' : ''}`}
                 rows={3}
                 placeholder="Brief description of what this experiment tests"
                 value={state.description}
@@ -122,7 +122,7 @@ export function Step8Summary() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Hypothesis</label>
               <textarea
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isHypothesisUpdatedByAI ? 'ai-updated' : ''}`}
+                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${isHypothesisUpdatedByAI ? 'ai-updated' : ''}`}
                 rows={3}
                 placeholder="e.g., Changing the CTA button color to green will increase conversion rate by at least 5%"
                 value={state.hypothesis}

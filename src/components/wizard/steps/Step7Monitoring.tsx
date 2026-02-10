@@ -153,7 +153,7 @@ export function Step7Monitoring() {
               Ship Criteria (✅ Launch to all users)
             </label>
             <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Primary metric improves by ≥ MDE, no guardrail degradation"
             />
@@ -164,7 +164,7 @@ export function Step7Monitoring() {
               Iterate Criteria (🔄 Refine and re-test)
             </label>
             <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Positive trend but not significant, mixed results on metrics"
             />
@@ -175,7 +175,7 @@ export function Step7Monitoring() {
               Kill Criteria (❌ Abandon the change)
             </label>
             <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Significant negative impact on primary or guardrail metrics"
             />

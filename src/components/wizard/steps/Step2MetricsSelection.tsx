@@ -154,7 +154,7 @@ export function Step2MetricsSelection() {
                     <h4 className="font-medium text-gray-900">{metric.name}</h4>
                     <button
                       onClick={toggleCategory}
-                      className={`px-3 py-1 text-xs font-medium rounded-full border transition-all hover:shadow-md ${getCategoryColor(metric.category)}`}
+                      className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors hover:border-primary-300 ${getCategoryColor(metric.category)}`}
                       title="Click to toggle category"
                     >
                       {getCategoryLabel(metric.category)}

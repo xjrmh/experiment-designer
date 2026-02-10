@@ -37,11 +37,11 @@ export function WizardProgress() {
                     }}
                     className={`
                       relative flex items-center justify-center w-8 h-8 rounded-full font-semibold text-xs
-                      transition-all duration-200 hover:scale-105
-                      ${isCurrent ? 'bg-primary text-white shadow-md ring-2 ring-primary-100' : ''}
-                      ${isCompleted ? 'bg-success text-white shadow-sm' : ''}
-                      ${isPending ? 'bg-white border-2 border-gray-300 text-gray-500' : ''}
-                      ${isAIUpdated ? 'ring-1 ring-primary-200 ring-offset-2 ring-offset-white shadow-[0_0_0_4px_rgba(59,130,246,0.06)]' : ''}
+                      transition-colors transition-transform duration-150 active:translate-y-px
+                      ${isCurrent ? 'bg-primary text-white ring-2 ring-primary-100' : ''}
+                      ${isCompleted ? 'bg-success text-white' : ''}
+                      ${isPending ? 'bg-white border-2 border-slate-300 text-slate-400 hover:border-slate-400' : ''}
+                      ${isAIUpdated ? 'ring-2 ring-primary-200 ring-offset-2 ring-offset-white' : ''}
                     `}
                   >
                     {isCompleted ? (
@@ -60,7 +60,7 @@ export function WizardProgress() {
                   <div className="mt-1 text-center">
                     <div
                       className={`text-xs font-medium transition-colors leading-tight ${
-                        isCurrent ? 'text-primary' : isCompleted ? 'text-success' : 'text-gray-500'
+                        isCurrent ? 'text-primary' : isCompleted ? 'text-success' : 'text-slate-400'
                       }`}
                     >
                       {step.shortLabel}
@@ -91,11 +91,11 @@ export function WizardProgress() {
                   }}
                   className={`
                     relative flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold
-                    transition-all duration-300
-                    ${isCurrent ? 'bg-primary text-white shadow-md' : ''}
+                    transition-colors transition-transform duration-150 active:translate-y-px
+                    ${isCurrent ? 'bg-primary text-white ring-2 ring-primary-100' : ''}
                     ${isCompleted ? 'bg-success text-white' : ''}
-                    ${!isCurrent && !isCompleted ? 'bg-gray-200 text-gray-500' : ''}
-                    ${isAIUpdated ? 'ring-1 ring-primary-200 ring-offset-1 ring-offset-white shadow-[0_0_0_3px_rgba(59,130,246,0.06)]' : ''}
+                    ${!isCurrent && !isCompleted ? 'bg-slate-200 text-slate-400' : ''}
+                    ${isAIUpdated ? 'ring-2 ring-primary-200 ring-offset-1 ring-offset-white' : ''}
                   `}
                 >
                   {isCompleted ? '✓' : step.number}
@@ -104,7 +104,7 @@ export function WizardProgress() {
                   )}
                 </button>
                 {index < STEPS.length - 1 && (
-                  <div className={`w-2 h-0.5 mx-1 ${isConnectorCompleted ? 'bg-success' : 'bg-gray-200'}`} />
+                  <div className={`w-2 h-0.5 mx-1 ${isConnectorCompleted ? 'bg-success' : 'bg-slate-200'}`} />
                 )}
               </div>
             )
@@ -114,7 +114,7 @@ export function WizardProgress() {
           <div className="text-sm font-medium text-primary">
             Step {currentStep}: {STEPS[currentStep - 1].label}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-slate-400 mt-1">
             {currentStep} of {STEPS.length}
           </div>
         </div>

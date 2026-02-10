@@ -10,9 +10,9 @@ export function Card({ children, hover = false, selected = false, className = ''
   return (
     <div
       className={`
-        bg-white rounded-xl border p-6
-        ${hover ? 'hover:shadow-lg hover:border-primary-300 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer' : 'shadow-sm'}
-        ${selected ? 'border-primary-400 border-2 shadow-md ring-2 ring-primary-100' : 'border-gray-200'}
+        bg-white rounded-xl border p-6 transition-colors duration-200
+        ${hover ? 'cursor-pointer hover:border-primary-300 hover:bg-primary-50/30 active:translate-y-px' : ''}
+        ${selected ? 'border-primary-400 border-2 ring-2 ring-primary-100' : 'border-gray-200'}
         ${className}
       `}
       {...props}

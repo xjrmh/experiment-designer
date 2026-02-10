@@ -17,7 +17,7 @@ export function Tooltip({ content, children }: TooltipProps) {
         {children}
       </div>
       {show && (
-        <div className="absolute z-10 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg -top-2 left-full ml-2 w-64">
+        <div className="absolute z-10 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg border border-slate-700 -top-2 left-full ml-2 w-64">
           {content}
           <div className="absolute top-3 right-full w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-r-4 border-r-gray-900" />
         </div>

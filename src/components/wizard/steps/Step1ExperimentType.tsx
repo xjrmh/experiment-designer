@@ -36,7 +36,7 @@ export function Step1ExperimentType() {
             <div className="flex items-start space-x-4">
               <div className="text-4xl">{template.icon}</div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                <h3 className="font-semibold text-gray-900">{template.name}</h3>
                 <p className="mt-1 text-sm text-gray-600">{template.description}</p>
               </div>
             </div>
@@ -47,7 +47,7 @@ export function Step1ExperimentType() {
       {experimentType && (
         <Card className="bg-primary-50 border-primary">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="font-semibold text-gray-900">
               {templates.find((t) => t.type === experimentType)?.name}
             </h3>
 

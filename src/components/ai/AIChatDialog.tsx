@@ -226,7 +226,13 @@ function wait(ms: number) {
   })
 }
 
-export function AIChatDialog() {
+type AIChatDialogMode = 'popup' | 'docked'
+
+interface AIChatDialogProps {
+  mode?: AIChatDialogMode
+}
+
+export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   const { messages, isOpen, apiKey, isDemo, isLoading, addMessage, setLoading, setApiKey, setDemo, clearMessages, setOpen } =
     useAIChatStore()
   const experimentStore = useExperimentStore()
@@ -238,6 +244,8 @@ export function AIChatDialog() {
   const [showSetupScreen, setShowSetupScreen] = useState(false)
   const [hasCompletedPresetDemo, setHasCompletedPresetDemo] = useState(false)
   const demoRunIdRef = useRef(0)
+  const isPopupMode = mode === 'popup'
+  const isDialogVisible = isPopupMode ? isOpen : true
 
   const isReady = isDemo || !!apiKey
   const isSetupScreenVisible = showSetupScreen || !isReady
@@ -254,7 +262,7 @@ export function AIChatDialog() {
 
   // Initialise position to bottom-right on first open
   useEffect(() => {
-    if (isOpen && !pos.initialized) {
+    if (isPopupMode && isDialogVisible && !pos.initialized) {
       const pad = 16
       setPos({
         x: window.innerWidth - DEFAULT_WIDTH - pad,
@@ -262,7 +270,7 @@ export function AIChatDialog() {
         initialized: true,
       })
     }
-  }, [isOpen, pos.initialized])
+  }, [isPopupMode, isDialogVisible, pos.initialized])
 
   // --- Drag handlers (on header) ---
   const onDragStart = useCallback((e: ReactPointerEvent) => {
@@ -320,17 +328,17 @@ export function AIChatDialog() {
 
   // Focus input when dialog opens
   useEffect(() => {
-    if (isOpen && isReady && !isSetupScreenVisible) {
+    if (isDialogVisible && isReady && !isSetupScreenVisible) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
-  }, [isOpen, isReady, isSetupScreenVisible])
+  }, [isDialogVisible, isReady, isSetupScreenVisible])
 
   // Add greeting when first opened with no messages
   useEffect(() => {
-    if (isOpen && messages.length === 0 && isReady && !isSetupScreenVisible) {
+    if (isDialogVisible && messages.length === 0 && isReady && !isSetupScreenVisible) {
       addMessage({ role: 'assistant', content: GREETING_MESSAGE })
     }
-  }, [isOpen, messages.length, isReady, isSetupScreenVisible, addMessage])
+  }, [isDialogVisible, messages.length, isReady, isSetupScreenVisible, addMessage])
 
   const applyFunctionCalls = useCallback(
     (calls: FunctionCall[]): string => {
@@ -658,104 +666,124 @@ export function AIChatDialog() {
     setShowSetupScreen(false)
   }
 
-  if (!isOpen) return null
+  if (!isDialogVisible) return null
 
   return (
     <div
       ref={dialogRef}
-      className="fixed z-[100] flex flex-col bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-gray-300/60 border border-gray-200 overflow-hidden animate-in"
-      style={{
-        left: pos.x,
-        top: pos.y,
-        width: size.w,
-        height: size.h,
-      }}
+      className={`flex h-full flex-col overflow-hidden ${
+        isPopupMode
+          ? 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white animate-in'
+          : 'relative w-full bg-white'
+      }`}
+      style={
+        isPopupMode
+          ? {
+              left: pos.x,
+              top: pos.y,
+              width: size.w,
+              height: size.h,
+            }
+          : undefined
+      }
     >
-      <style>{`
-        @keyframes animate-in {
-          from { opacity: 0; transform: translateY(16px) scale(0.96); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .animate-in { animation: animate-in 0.25s ease-out; }
-      `}</style>
+      {isPopupMode && (
+        <style>{`
+          @keyframes animate-in {
+            from { opacity: 0; transform: translateY(16px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          .animate-in { animation: animate-in 0.25s ease-out; }
+        `}</style>
+      )}
 
-      {/* Resize handle — top-left corner */}
-      <div
-        onPointerDown={onResizeStart}
-        onPointerMove={onResizeMove}
-        onPointerUp={onResizeEnd}
-        className="absolute top-0 left-0 w-4 h-4 z-10 cursor-nw-resize"
-        style={{ touchAction: 'none' }}
-      >
-        <svg className="w-3 h-3 m-0.5 text-gray-400 rotate-180" viewBox="0 0 10 10" fill="currentColor">
-          <path d="M0 10L10 0v3L3 10z" />
-          <path d="M0 10L10 0v0.5L0.5 10z" opacity="0.5" />
-          <path d="M4 10L10 4v3L7 10z" />
-        </svg>
-      </div>
-
-      {/* Header — draggable */}
-      <div
-        onPointerDown={onDragStart}
-        onPointerMove={onDragMove}
-        onPointerUp={onDragEnd}
-        className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white shrink-0 cursor-grab active:cursor-grabbing select-none"
-        style={{ touchAction: 'none' }}
-      >
-        <div className="flex items-center gap-2.5 pointer-events-none">
-          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/20">
-            <svg className="w-3.5 h-3.5 text-primary-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
-              />
-            </svg>
-          </div>
-          <span className="font-semibold text-sm tracking-tight">AI Experiment Assistant</span>
+      {isPopupMode && (
+        <div
+          onPointerDown={onResizeStart}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeEnd}
+          className="absolute top-0 left-0 w-4 h-4 z-10 cursor-nw-resize"
+          style={{ touchAction: 'none' }}
+        >
+          <svg className="w-3 h-3 m-0.5 text-slate-500 rotate-180" viewBox="0 0 10 10" fill="currentColor">
+            <path d="M0 10L10 0v3L3 10z" />
+            <path d="M0 10L10 0v0.5L0.5 10z" opacity="0.5" />
+            <path d="M4 10L10 4v3L7 10z" />
+          </svg>
         </div>
-        <div className="flex items-center gap-0.5">
-          {isReady && messages.length > 0 && (
-            <button
-              onClick={() => {
-                demoRunIdRef.current = Date.now()
-                setLoading(false)
-                setShowSetupScreen(true)
-                setShowOwnKey(false)
-                setApiKeyInput('')
-                setApiKeyError('')
-                clearMessages()
-              }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-              title="New conversation"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      )}
+
+      <div className={`shrink-0 ${isPopupMode ? '' : 'border-b border-slate-100 bg-white px-4 py-3 sm:px-6 lg:px-8'}`}>
+        <div
+          onPointerDown={isPopupMode ? onDragStart : undefined}
+          onPointerMove={isPopupMode ? onDragMove : undefined}
+          onPointerUp={isPopupMode ? onDragEnd : undefined}
+          className={`flex items-center justify-between select-none ${
+            isPopupMode
+              ? 'h-12 px-4 bg-slate-900 text-slate-100 cursor-grab active:cursor-grabbing'
+              : 'h-[51px] text-slate-900'
+          }`}
+          style={isPopupMode ? { touchAction: 'none' } : undefined}
+        >
+          <div className={`flex items-center gap-2.5 ${isPopupMode ? 'pointer-events-none' : ''}`}>
+            <div className={`flex h-8 w-8 items-center justify-center rounded-md ${isPopupMode ? 'bg-sky-400/20' : 'bg-blue-100'}`}>
+              <svg className={`h-4 w-4 ${isPopupMode ? 'text-sky-300' : 'text-blue-500'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"
+                  d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
                 />
               </svg>
-            </button>
-          )}
-          <button
-            onClick={() => setOpen(false)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
+            </div>
+            <span className="text-sm font-semibold tracking-tight">Experiment Assistant</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {isReady && messages.length > 0 && (
+              <button
+                onClick={() => {
+                  demoRunIdRef.current = Date.now()
+                  setLoading(false)
+                  setShowSetupScreen(true)
+                  setShowOwnKey(false)
+                  setApiKeyInput('')
+                  setApiKeyError('')
+                  clearMessages()
+                }}
+                className={`rounded-lg p-1.5 transition-colors ${
+                  isPopupMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-100' : 'text-blue-400 hover:bg-blue-100 hover:text-blue-600'
+                }`}
+                title="New conversation"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"
+                  />
+                </svg>
+              </button>
+            )}
+            {isPopupMode && (
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Body */}
       {isSetupScreenVisible ? (
         /* Setup Screen */
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <div className="min-h-full flex flex-col items-center justify-start gap-5">
-            <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
-              <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 ring-1 ring-blue-100">
+              <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -764,22 +792,22 @@ export function AIChatDialog() {
               </svg>
             </div>
             <div className="text-center">
-              <h3 className="font-semibold text-gray-900">AI Experiment Assistant</h3>
-              <p className="text-xs text-gray-500 mt-1">Get real-time guided help designing your experiment with AI.</p>
+              <h3 className="font-semibold text-slate-900">Experiment Assistant</h3>
+              <p className="mt-1 text-xs text-slate-500">Get real-time guided help designing your experiment with AI.</p>
             </div>
 
             <div className="w-full space-y-2">
               <button
                 onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors transition-transform active:translate-y-px ${
                   shouldHighlightTryYourself
-                    ? 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    : 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
+                    ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-white'
+                    : 'border-blue-200 bg-blue-50 hover:border-blue-300 hover:bg-blue-100'
                 }`}
               >
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                    shouldHighlightTryYourself ? 'bg-gray-100 text-gray-700' : 'bg-primary text-white'
+                    shouldHighlightTryYourself ? 'bg-slate-100 text-slate-700' : 'bg-blue-500 text-white'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -787,35 +815,35 @@ export function AIChatDialog() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Simple Demo: Red vs Blue Button</div>
-                  <div className="text-xs text-gray-500">A/B test preset with full metrics and export-ready setup</div>
+                  <div className="text-sm font-semibold text-slate-900">Simple Demo: Red vs Blue Button</div>
+                  <div className="text-xs text-slate-500">A/B test preset with full metrics and export-ready setup</div>
                 </div>
               </button>
               <button
                 onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors transition-transform hover:border-slate-300 hover:bg-white active:translate-y-px"
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-700 shrink-0">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 shrink-0">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Complex Demo: Cluster Messaging Test</div>
-                  <div className="text-xs text-gray-500">Network-effect cluster preset with advanced guardrails</div>
+                  <div className="text-sm font-semibold text-slate-900">Complex Demo: Cluster Messaging Test</div>
+                  <div className="text-xs text-slate-500">Network-effect cluster preset with advanced guardrails</div>
                 </div>
               </button>
               <button
                 onClick={() => startSelfGuidedDemo()}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors transition-transform active:translate-y-px ${
                   shouldHighlightTryYourself
-                    ? 'border-2 border-primary bg-primary-50 hover:bg-primary-100'
-                    : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-blue-200 bg-blue-50 hover:border-blue-300 hover:bg-blue-100'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-white'
                 }`}
               >
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                    shouldHighlightTryYourself ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'
+                    shouldHighlightTryYourself ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-700'
                   }`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -823,8 +851,8 @@ export function AIChatDialog() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Try it yourself</div>
-                  <div className="text-xs text-gray-500">Start demo mode without a template</div>
+                  <div className="text-sm font-semibold text-slate-900">Try it yourself</div>
+                  <div className="text-xs text-slate-500">Start demo mode without a template</div>
                 </div>
               </button>
 
@@ -838,12 +866,12 @@ export function AIChatDialog() {
                       setApiKeyError('')
                     }}
                     placeholder="sk-..."
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   />
                   {apiKeyError && <p className="text-xs text-red-500">{apiKeyError}</p>}
                   <button
                     type="submit"
-                    className="w-full px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-600 transition-colors shadow-sm hover:shadow-md"
+                    className="w-full rounded-xl border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors transition-transform hover:border-blue-500 hover:bg-blue-500 active:translate-y-px"
                   >
                     Connect
                   </button>
@@ -851,16 +879,16 @@ export function AIChatDialog() {
               ) : (
                 <button
                   onClick={() => setShowOwnKey(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors transition-transform hover:border-slate-300 hover:bg-white active:translate-y-px"
                 >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600 shrink-0">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 shrink-0">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
                     </svg>
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-gray-900">Use Your Own Key</div>
-                    <div className="text-xs text-gray-500">Connect your OpenAI API key</div>
+                    <div className="text-sm font-semibold text-slate-900">Use Your Own Key</div>
+                    <div className="text-xs text-slate-500">Connect your OpenAI API key</div>
                   </div>
                 </button>
               )}
@@ -870,17 +898,17 @@ export function AIChatDialog() {
       ) : (
         /* Chat Area */
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
             {messages.map((msg) => (
               <AIChatMessage key={msg.id} message={msg} />
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="rounded-2xl rounded-bl-md bg-blue-50 px-4 py-3">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '0ms' }} />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '150ms' }} />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
@@ -889,7 +917,7 @@ export function AIChatDialog() {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3 flex gap-2">
+          <form onSubmit={handleSend} className="flex shrink-0 gap-2 border-t border-blue-100 bg-white p-3">
             <input
               ref={inputRef}
               type="text"
@@ -897,12 +925,12 @@ export function AIChatDialog() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Describe your experiment..."
               disabled={isLoading}
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-50"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="rounded-xl border border-blue-600 bg-blue-600 px-3 py-2 text-white transition-colors transition-transform hover:border-blue-500 hover:bg-blue-500 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path

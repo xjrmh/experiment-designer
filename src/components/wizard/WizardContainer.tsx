@@ -59,11 +59,11 @@ export function WizardContainer() {
 
   return (
     <div className="w-full">
-      <div className="min-h-[500px] mb-8">
+      <div className="mb-8 min-h-[500px]">
         {renderStep()}
       </div>
 
-      <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-gray-200 bg-white/50 backdrop-blur-sm -mx-6 px-6 py-4 rounded-b-xl">
+      <div className="mt-8 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 sm:px-6">
         {currentStep < 8 && (
           <Button
             variant="outline"
@@ -78,7 +78,7 @@ export function WizardContainer() {
           </Button>
         )}
 
-        <div className="flex gap-3 ml-auto">
+        <div className="ml-auto flex gap-3">
           <Button variant="ghost" onClick={reset} size="md">
             Reset
           </Button>

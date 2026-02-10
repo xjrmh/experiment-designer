@@ -19,7 +19,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           className={`
-            w-full px-3 py-2 border rounded-lg
+            w-full px-3 py-2 border rounded-lg text-sm
             focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
             disabled:bg-gray-100 disabled:cursor-not-allowed
             ${error ? 'border-error focus:ring-error' : 'border-gray-300'}
@@ -27,9 +27,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           `}
           {...props}
         />
-        {error && <p className="mt-1 text-sm text-error">{error}</p>}
+        {error && <p className="mt-1 text-xs text-error">{error}</p>}
         {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+          <p className="mt-1 text-xs text-gray-500">{helperText}</p>
         )}
       </div>
     )

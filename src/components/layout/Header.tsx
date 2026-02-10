@@ -1,76 +1,63 @@
-import { useState, useCallback } from 'react'
-import { AIChatButton } from '../ai/AIChatButton'
+type HeaderOrientation = 'horizontal' | 'vertical'
 
-const BUBBLES = ['🔬', '⚗️', '🧬', '💊', '📊', '✨', '🎯', '📈', '🧫', '💡']
+type HeaderProps = {
+  orientation?: HeaderOrientation
+}
 
-export function Header() {
-  const [bubbles, setBubbles] = useState<{ id: number; emoji: string; x: number; y: number }[]>([])
-  const [shaking, setShaking] = useState(false)
+function LogoMark() {
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">
+      <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-1.47 4.306a2.25 2.25 0 0 1-2.133 1.544H8.603a2.25 2.25 0 0 1-2.134-1.544L5 14.5m14 0H5"
+        />
+      </svg>
+    </div>
+  )
+}
 
-  const handleClick = useCallback(() => {
-    setShaking(true)
-    setTimeout(() => setShaking(false), 500)
-
-    const newBubbles = Array.from({ length: 12 }, (_, i) => {
-      const angle = (i * 30 + Math.random() * 20 - 10) * (Math.PI / 180)
-      const dist = Math.random() * 60 + 80
-      return {
-        id: Date.now() + i,
-        emoji: BUBBLES[Math.floor(Math.random() * BUBBLES.length)],
-        x: Math.cos(angle) * dist,
-        y: Math.sin(angle) * dist,
-      }
-    })
-    setBubbles((prev) => [...prev, ...newBubbles])
-    setTimeout(() => {
-      setBubbles((prev) => prev.filter((b) => !newBubbles.some((nb) => nb.id === b.id)))
-    }, 900)
-  }, [])
+export function Header({ orientation = 'horizontal' }: HeaderProps) {
+  if (orientation === 'vertical') {
+    return (
+      <header className="flex w-12 shrink-0 border-r border-slate-100 bg-white">
+        <div className="relative flex h-full w-full flex-col items-center py-4">
+          <LogoMark />
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pl-1 pt-16">
+            <span
+              className="whitespace-nowrap text-sm tracking-[0.16em]"
+              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+            >
+              <span className="font-semibold text-slate-800">Experiment Designer</span>
+              <span className="text-slate-300"> / </span>
+              <span className="font-medium text-slate-400">Guided Workflow</span>
+            </span>
+          </div>
+          <span className="mt-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        </div>
+      </header>
+    )
+  }
 
   return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm sticky top-0 z-50">
-      <style>{`
-        @keyframes bubble-float {
-          0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          100% { opacity: 0; transform: translate(calc(var(--bx) - 50%), calc(var(--by) - 50%)) scale(0.4); }
-        }
-        @keyframes flask-shake {
-          0%, 100% { transform: rotate(0deg); }
-          20% { transform: rotate(-15deg); }
-          40% { transform: rotate(12deg); }
-          60% { transform: rotate(-8deg); }
-          80% { transform: rotate(5deg); }
-        }
-      `}</style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleClick}
-              className="relative text-4xl filter drop-shadow-sm cursor-pointer select-none hover:scale-110 transition-transform"
-              style={shaking ? { animation: 'flask-shake 0.5s ease-in-out' } : undefined}
-            >
-              🧪
-              {bubbles.map((b) => (
-                <span
-                  key={b.id}
-                  className="absolute left-1/2 top-1/2 pointer-events-none text-xl"
-                  style={{
-                    '--bx': `${b.x}px`,
-                    '--by': `${b.y}px`,
-                    animation: 'bubble-float 0.8s ease-out forwards',
-                  } as React.CSSProperties}
-                >
-                  {b.emoji}
-                </span>
-              ))}
-            </button>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Experiment Designer</h1>
-              <p className="text-sm text-gray-600 mt-0.5 hidden sm:block">Design, calculate, and document your experiments</p>
-            </div>
+    <header className="shrink-0 border-b border-slate-100 bg-white">
+      <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <LogoMark />
+
+        {/* Title */}
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold tracking-tight text-slate-900">Experiment Designer</span>
+          <span className="hidden text-xs text-slate-300 sm:inline">/</span>
+          <span className="hidden text-xs text-slate-400 sm:inline">Guided Workflow</span>
+        </div>
+
+        {/* Right side */}
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden items-center gap-1.5 sm:flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs text-slate-400">Ready</span>
           </div>
-          <AIChatButton />
         </div>
       </div>
     </header>
