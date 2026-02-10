@@ -51,7 +51,7 @@ export function FactorialPanel({ sampleSizeResult }: FactorialPanelProps) {
       </p>
       <div className="space-y-3">
         {factors.map((factor, i) => (
-          <div key={i} className="flex items-end gap-3">
+          <div key={i} className="flex flex-col gap-3 rounded-lg bg-slate-50/70 p-3 sm:flex-row sm:items-end sm:bg-transparent sm:p-0">
             <div className="flex-1">
               <Input
                 label={i === 0 ? 'Factor Name' : undefined}
@@ -59,7 +59,7 @@ export function FactorialPanel({ sampleSizeResult }: FactorialPanelProps) {
                 onChange={(e) => updateFactor(i, 'name', e.target.value)}
               />
             </div>
-            <div className="w-28">
+            <div className="w-full sm:w-28">
               <Input
                 label={i === 0 ? 'Levels' : undefined}
                 type="number"
@@ -72,7 +72,7 @@ export function FactorialPanel({ sampleSizeResult }: FactorialPanelProps) {
             {factors.length > 2 && (
               <button
                 onClick={() => removeFactor(i)}
-                className="mb-1 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                className="self-end p-2 text-gray-400 transition-colors hover:text-red-500 sm:mb-1"
               >
                 ✕
               </button>

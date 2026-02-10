@@ -63,33 +63,36 @@ export function WizardContainer() {
         {renderStep()}
       </div>
 
-      <div className="mt-8 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 sm:px-6">
-        {currentStep < 8 && (
-          <Button
-            variant="outline"
-            onClick={previousStep}
-            disabled={currentStep === 1}
-            size="md"
-          >
-            <span className="flex items-center gap-2">
-              <span>←</span>
-              <span>Previous</span>
-            </span>
-          </Button>
-        )}
-
-        <div className="ml-auto flex gap-3">
-          <Button variant="ghost" onClick={reset} size="md">
-            Reset
-          </Button>
-          {currentStep < 8 ? (
-            <Button onClick={nextStep} disabled={!canProceed()} size="md">
-              <span className="flex items-center gap-2">
-                <span>Next</span>
-                <span>→</span>
+      <div className="mt-8 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 sm:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {currentStep < 8 && (
+            <Button
+              variant="outline"
+              onClick={previousStep}
+              disabled={currentStep === 1}
+              size="md"
+              className="w-full sm:w-auto"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <span>←</span>
+                <span>Previous</span>
               </span>
             </Button>
-          ) : null}
+          )}
+
+          <div className="flex w-full gap-2 sm:w-auto sm:justify-end">
+            <Button variant="ghost" onClick={reset} size="md" className="flex-1 sm:flex-none">
+              Reset
+            </Button>
+            {currentStep < 8 ? (
+              <Button onClick={nextStep} disabled={!canProceed()} size="md" className="flex-1 sm:flex-none">
+                <span className="flex items-center justify-center gap-2">
+                  <span>Next</span>
+                  <span>→</span>
+                </span>
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

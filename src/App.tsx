@@ -22,7 +22,7 @@ function App() {
   }, [])
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-white ${isLg ? 'flex-row' : 'flex-col'}`}>
+    <div className={`flex min-h-screen h-dvh overflow-hidden bg-white ${isLg ? 'flex-row' : 'flex-col'}`}>
       {isLg && <Header orientation="vertical" />}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -34,17 +34,17 @@ function App() {
           {/* Left: Progress + scrollable main content */}
           <div className="flex min-w-0 flex-1 flex-col">
             {/* Wizard progress — always visible */}
-            <div className="shrink-0 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 lg:px-8">
-              <div className="mx-auto max-w-5xl">
+            <div className="shrink-0 border-b border-slate-100 bg-white px-3 py-3 sm:px-6 lg:px-8">
+              <div className="w-full sm:mx-auto sm:max-w-5xl">
                 <WizardProgress />
               </div>
             </div>
 
             {/* Scrollable main content */}
-            <div className="flex-1 overflow-y-auto bg-slate-50">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50">
               <div className="flex min-h-full flex-col">
                 <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-                  <div className="p-5 sm:p-7 lg:p-8">
+                  <div className="p-3 sm:p-7 lg:p-8">
                     <WizardContainer />
                   </div>
                 </main>

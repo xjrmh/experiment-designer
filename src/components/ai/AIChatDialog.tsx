@@ -47,6 +47,7 @@ const MIN_WIDTH = 340
 const MIN_HEIGHT = 380
 const DEFAULT_WIDTH = 420
 const DEFAULT_HEIGHT = 560
+const COMPACT_VIEWPORT_BREAKPOINT = 640
 const DEMO_STAGE_DELAY_MS = 550
 
 const STEP_MAP: Record<string, number> = {
@@ -392,6 +393,9 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   const [showStarterOptions, setShowStarterOptions] = useState(() => !(isDemo || !!apiKey))
   const demoRunIdRef = useRef(0)
   const isPopupMode = mode === 'popup'
+  const [isCompactViewport, setIsCompactViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < COMPACT_VIEWPORT_BREAKPOINT : false
+  )
   const isDialogVisible = isPopupMode ? isOpen : true
 
   const isReady = isDemo || !!apiKey
@@ -409,17 +413,32 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
   const resizeState = useRef<{ startX: number; startY: number; origW: number; origH: number; origX: number; origY: number } | null>(null)
 
+  useEffect(() => {
+    if (!isPopupMode) return
+
+    const handleResize = () => {
+      setIsCompactViewport(window.innerWidth < COMPACT_VIEWPORT_BREAKPOINT)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [isPopupMode])
+
   // Initialise position to bottom-right on first open
   useEffect(() => {
-    if (isPopupMode && isDialogVisible && !pos.initialized) {
+    if (isPopupMode && !isCompactViewport && isDialogVisible && !pos.initialized) {
       const pad = 16
+      const width = Math.min(DEFAULT_WIDTH, window.innerWidth - pad * 2)
+      const height = Math.min(DEFAULT_HEIGHT, window.innerHeight - pad * 2)
+      setSize({ w: width, h: height })
       setPos({
-        x: window.innerWidth - DEFAULT_WIDTH - pad,
-        y: window.innerHeight - DEFAULT_HEIGHT - pad,
+        x: window.innerWidth - width - pad,
+        y: window.innerHeight - height - pad,
         initialized: true,
       })
     }
-  }, [isPopupMode, isDialogVisible, pos.initialized])
+  }, [isPopupMode, isCompactViewport, isDialogVisible, pos.initialized])
 
   // --- Drag handlers (on header) ---
   const onDragStart = useCallback((e: ReactPointerEvent) => {
@@ -1131,11 +1150,13 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
       ref={dialogRef}
       className={`flex h-full flex-col overflow-hidden ${
         isPopupMode
-          ? 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
+          ? isCompactViewport
+            ? 'fixed inset-x-0 bottom-0 z-[100] h-[50dvh] rounded-t-2xl border-x border-t border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
+            : 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
           : 'relative w-full bg-gradient-to-b from-primary-50/30 via-white to-white'
       }`}
       style={
-        isPopupMode
+        isPopupMode && !isCompactViewport
           ? {
               left: pos.x,
               top: pos.y,
@@ -1155,7 +1176,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         `}</style>
       )}
 
-      {isPopupMode && (
+      {isPopupMode && !isCompactViewport && (
         <div
           onPointerDown={onResizeStart}
           onPointerMove={onResizeMove}
@@ -1177,15 +1198,17 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         }`}
       >
         <div
-          onPointerDown={isPopupMode ? onDragStart : undefined}
-          onPointerMove={isPopupMode ? onDragMove : undefined}
-          onPointerUp={isPopupMode ? onDragEnd : undefined}
+          onPointerDown={isPopupMode && !isCompactViewport ? onDragStart : undefined}
+          onPointerMove={isPopupMode && !isCompactViewport ? onDragMove : undefined}
+          onPointerUp={isPopupMode && !isCompactViewport ? onDragEnd : undefined}
           className={`flex items-center justify-between select-none ${
             isPopupMode
-              ? 'h-12 px-4 bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 text-white cursor-grab active:cursor-grabbing'
+              ? `h-12 px-4 bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 text-white ${
+                  isCompactViewport ? '' : 'cursor-grab active:cursor-grabbing'
+                }`
               : 'h-[51px] text-slate-900'
           }`}
-          style={isPopupMode ? { touchAction: 'none' } : undefined}
+          style={isPopupMode && !isCompactViewport ? { touchAction: 'none' } : undefined}
         >
           <div className={`flex items-center gap-2.5 ${isPopupMode ? 'pointer-events-none' : ''}`}>
             <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isPopupMode ? 'bg-white/20' : 'bg-primary-100'}`}>

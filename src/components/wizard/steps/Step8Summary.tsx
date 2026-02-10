@@ -179,7 +179,7 @@ export function Step8Summary() {
         <div className={`grid gap-4 ${state.experimentType && state.experimentType !== ExperimentType.AB_TEST ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
           <div className="p-4 bg-primary-50 rounded-lg">
             <div className="text-sm text-gray-600">Experiment Type</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
+            <div className="mt-1 break-words text-base font-semibold text-gray-900 sm:text-lg">
               {state.experimentType || 'Not selected'}
             </div>
           </div>
@@ -187,13 +187,13 @@ export function Step8Summary() {
             <div className="text-sm text-gray-600">
               {state.sampleSizeResult?.isAdaptive ? 'Total Horizon' : 'Sample Size (Total)'}
             </div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
+            <div className="mt-1 break-words text-base font-semibold text-gray-900 sm:text-lg">
               {state.sampleSizeResult?.totalSampleSize.toLocaleString() || 'Not calculated'}
             </div>
           </div>
           <div className="p-4 bg-primary-50 rounded-lg">
             <div className="text-sm text-gray-600">Estimated Duration</div>
-            <div className="text-lg font-semibold text-gray-900 mt-1">
+            <div className="mt-1 break-words text-base font-semibold text-gray-900 sm:text-lg">
               {state.durationEstimate ? `${state.durationEstimate.days} days` : 'Not calculated'}
             </div>
           </div>
@@ -203,7 +203,7 @@ export function Step8Summary() {
             return (
               <div className="p-4 bg-primary-50 rounded-lg">
                 <div className="text-sm text-gray-600">Type-Specific</div>
-                <div className="text-lg font-semibold text-gray-900 mt-1">{typeInfo}</div>
+                <div className="mt-1 break-words text-base font-semibold text-gray-900 sm:text-lg">{typeInfo}</div>
               </div>
             )
           })()}

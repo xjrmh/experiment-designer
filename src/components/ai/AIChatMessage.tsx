@@ -16,7 +16,7 @@ export function AIChatMessage({ message }: AIChatMessageProps) {
             : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <p className="whitespace-pre-wrap break-words">{message.content}</p>
         {message.configuredAction && (
           <div
             className={`mt-2 pt-2 border-t text-xs ${

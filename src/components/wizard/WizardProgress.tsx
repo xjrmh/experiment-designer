@@ -13,6 +13,7 @@ const STEPS = [
 
 export function WizardProgress() {
   const { currentStep, furthestStep, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = useExperiment()
+  const progressPercent = (currentStep / STEPS.length) * 100
 
   return (
     <div>
@@ -74,48 +75,60 @@ export function WizardProgress() {
       </div>
 
       {/* Mobile/Tablet View */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between mb-4">
-          {STEPS.map((step, index) => {
-            const isCurrent = currentStep === step.number
-            const isCompleted = !isCurrent && furthestStep > step.number
-            const isAIUpdated = aiUpdatedSteps.includes(step.number)
-            const isConnectorCompleted = furthestStep > step.number
+      <div className="space-y-3 lg:hidden">
+        <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-primary">
+                Step {currentStep}: {STEPS[currentStep - 1].label}
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                {currentStep} of {STEPS.length}
+              </div>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-slate-500">
+              {Math.round(progressPercent)}%
+            </span>
+          </div>
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-200"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
 
-            return (
-              <div key={step.number} className="flex items-center">
+        <div className="w-full pb-1">
+          <div className="grid grid-cols-8 gap-2">
+            {STEPS.map((step) => {
+              const isCurrent = currentStep === step.number
+              const isCompleted = !isCurrent && furthestStep > step.number
+              const isAIUpdated = aiUpdatedSteps.includes(step.number)
+
+              return (
                 <button
+                  key={step.number}
                   onClick={() => {
                     setCurrentStep(step.number)
                     clearAIStepHighlight(step.number)
                   }}
+                  title={`${step.number}. ${step.label}`}
                   className={`
-                    relative flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold
+                    relative flex h-8 w-full items-center justify-center rounded-full text-xs font-semibold
                     transition-colors transition-transform duration-150 active:translate-y-px
                     ${isCurrent ? 'bg-primary text-white ring-2 ring-primary-100' : ''}
                     ${isCompleted ? 'bg-success text-white' : ''}
-                    ${!isCurrent && !isCompleted ? 'bg-slate-200 text-slate-400' : ''}
+                    ${!isCurrent && !isCompleted ? 'bg-slate-200 text-slate-500 hover:bg-slate-300' : ''}
                     ${isAIUpdated ? 'ring-2 ring-primary-200 ring-offset-1 ring-offset-white' : ''}
                   `}
                 >
                   {isCompleted ? '✓' : step.number}
                   {isAIUpdated && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary-500 ring-2 ring-white" />
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white" />
                   )}
                 </button>
-                {index < STEPS.length - 1 && (
-                  <div className={`w-2 h-0.5 mx-1 ${isConnectorCompleted ? 'bg-success' : 'bg-slate-200'}`} />
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="text-center">
-          <div className="text-sm font-medium text-primary">
-            Step {currentStep}: {STEPS[currentStep - 1].label}
-          </div>
-          <div className="text-xs text-slate-400 mt-1">
-            {currentStep} of {STEPS.length}
+              )
+            })}
           </div>
         </div>
       </div>
