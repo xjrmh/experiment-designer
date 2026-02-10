@@ -919,30 +919,36 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSend} className="flex shrink-0 items-end gap-2 border-t border-slate-200 bg-white p-3">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            placeholder={isReady ? 'Describe your experiment...' : 'Choose an option above to start...'}
-            disabled={isLoading || !isReady}
-            rows={2}
-            className="min-h-[44px] max-h-36 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !isReady || !input.trim()}
-            className="rounded-xl border border-primary-600 bg-primary-600 px-3 py-2 text-white transition-colors transition-transform hover:border-primary-500 hover:bg-primary-500 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
-              />
-            </svg>
-          </button>
+        <form onSubmit={handleSend} className="flex shrink-0 flex-col gap-1 border-t border-slate-200 bg-white p-3">
+          <div className="flex items-stretch gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              placeholder={isReady ? 'Describe your experiment...' : 'Choose an option above to start...'}
+              disabled={isLoading || !isReady}
+              rows={2}
+              className="min-h-[44px] max-h-36 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !isReady || !input.trim()}
+              aria-label="Send message (Cmd+Enter)"
+              className="rounded-xl border border-primary-600 bg-primary-600 px-3 py-2 text-white transition-colors transition-transform hover:border-primary-500 hover:bg-primary-500 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
+                />
+              </svg>
+            </button>
+          </div>
+          {isReady && (
+            <p className="px-1 text-[11px] text-slate-500">Press Cmd+Enter to send.</p>
+          )}
         </form>
       </>
     </div>
