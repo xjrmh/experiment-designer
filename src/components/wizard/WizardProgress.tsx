@@ -1,4 +1,5 @@
 import { useExperiment } from '@/hooks/useExperiment'
+import { isStepComplete } from '@/lib/validation/stepValidation'
 
 const STEPS = [
   { number: 1, label: 'Experiment Type', shortLabel: 'Type' },
@@ -12,7 +13,8 @@ const STEPS = [
 ]
 
 export function WizardProgress() {
-  const { currentStep, furthestStep, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = useExperiment()
+  const experiment = useExperiment()
+  const { currentStep, visitedSteps, setCurrentStep, aiUpdatedSteps, clearAIStepHighlight } = experiment
   const progressPercent = (currentStep / STEPS.length) * 100
 
   return (
@@ -24,8 +26,10 @@ export function WizardProgress() {
           <div className="grid grid-cols-8 gap-1">
             {STEPS.map((step) => {
               const isCurrent = currentStep === step.number
-              const isCompleted = !isCurrent && furthestStep > step.number
-              const isPending = !isCurrent && !isCompleted
+              const isVisited = visitedSteps.includes(step.number)
+              const isCompleted = isVisited && isStepComplete(step.number, experiment)
+              const isVisitedIncomplete = isVisited && !isCompleted
+              const isUntouched = !isVisited
               const isAIUpdated = aiUpdatedSteps.includes(step.number)
 
               return (
@@ -40,12 +44,13 @@ export function WizardProgress() {
                       relative flex items-center justify-center w-8 h-8 rounded-full font-semibold text-xs
                       transition-colors transition-transform duration-150 active:translate-y-px
                       ${isCurrent ? 'bg-primary text-white ring-2 ring-primary-100' : ''}
-                      ${isCompleted ? 'bg-success text-white' : ''}
-                      ${isPending ? 'bg-white border-2 border-slate-300 text-slate-400 hover:border-slate-400' : ''}
+                      ${!isCurrent && isCompleted ? 'bg-success text-white' : ''}
+                      ${!isCurrent && isVisitedIncomplete ? 'bg-warning text-white hover:opacity-90' : ''}
+                      ${!isCurrent && isUntouched ? 'bg-white border-2 border-slate-300 text-slate-400 hover:border-slate-400' : ''}
                       ${isAIUpdated ? 'ring-2 ring-primary-200 ring-offset-2 ring-offset-white' : ''}
                     `}
                   >
-                    {isCompleted ? (
+                    {isCompleted && !isCurrent ? (
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -61,7 +66,13 @@ export function WizardProgress() {
                   <div className="mt-1 text-center">
                     <div
                       className={`text-xs font-medium transition-colors leading-tight ${
-                        isCurrent ? 'text-primary' : isCompleted ? 'text-success' : 'text-slate-400'
+                        isCurrent
+                          ? 'text-primary'
+                          : isCompleted
+                            ? 'text-success'
+                            : isVisitedIncomplete
+                              ? 'text-warning-600'
+                              : 'text-slate-400'
                       }`}
                     >
                       {step.shortLabel}
@@ -102,7 +113,9 @@ export function WizardProgress() {
           <div className="grid grid-cols-8 gap-2">
             {STEPS.map((step) => {
               const isCurrent = currentStep === step.number
-              const isCompleted = !isCurrent && furthestStep > step.number
+              const isVisited = visitedSteps.includes(step.number)
+              const isCompleted = isVisited && isStepComplete(step.number, experiment)
+              const isVisitedIncomplete = isVisited && !isCompleted
               const isAIUpdated = aiUpdatedSteps.includes(step.number)
 
               return (
@@ -117,12 +130,13 @@ export function WizardProgress() {
                     relative flex h-8 w-full items-center justify-center rounded-full text-xs font-semibold
                     transition-colors transition-transform duration-150 active:translate-y-px
                     ${isCurrent ? 'bg-primary text-white ring-2 ring-primary-100' : ''}
-                    ${isCompleted ? 'bg-success text-white' : ''}
-                    ${!isCurrent && !isCompleted ? 'bg-slate-200 text-slate-500 hover:bg-slate-300' : ''}
+                    ${!isCurrent && isCompleted ? 'bg-success text-white' : ''}
+                    ${!isCurrent && isVisitedIncomplete ? 'bg-warning text-white hover:opacity-90' : ''}
+                    ${!isCurrent && !isCompleted && !isVisitedIncomplete ? 'bg-slate-200 text-slate-500 hover:bg-slate-300' : ''}
                     ${isAIUpdated ? 'ring-2 ring-primary-200 ring-offset-1 ring-offset-white' : ''}
                   `}
                 >
-                  {isCompleted ? '✓' : step.number}
+                  {isCompleted && !isCurrent ? '✓' : step.number}
                   {isAIUpdated && (
                     <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white" />
                   )}

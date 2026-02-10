@@ -23,6 +23,7 @@ import { EXPERIMENT_TEMPLATES } from '@/constants/experimentTypes'
 interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'updatedAt'> {
   currentStep: number
   furthestStep: number
+  visitedSteps: number[]
   dailyTraffic: number
   aiUpdatedFields: string[]
   aiUpdatedMetricIds: string[]
@@ -59,6 +60,7 @@ interface ExperimentState extends Omit<ExperimentConfig, 'id' | 'createdAt' | 'u
 const initialState = {
   currentStep: 1,
   furthestStep: 1,
+  visitedSteps: [1],
   name: '',
   description: '',
   hypothesis: '',
@@ -135,6 +137,7 @@ export const useExperimentStore = create<ExperimentState>()(
         set((state) => ({
           currentStep: step,
           furthestStep: Math.max(state.furthestStep, step),
+          visitedSteps: Array.from(new Set([...(state.visitedSteps || [1]), step])).sort((a, b) => a - b),
         })),
 
       setExperimentType: (type) =>
@@ -263,15 +266,23 @@ export const useExperimentStore = create<ExperimentState>()(
         }),
 
       nextStep: () =>
-        set((state) => ({
-          currentStep: Math.min(state.currentStep + 1, 8),
-          furthestStep: Math.max(state.furthestStep, Math.min(state.currentStep + 1, 8)),
-        })),
+        set((state) => {
+          const next = Math.min(state.currentStep + 1, 8)
+          return {
+            currentStep: next,
+            furthestStep: Math.max(state.furthestStep, next),
+            visitedSteps: Array.from(new Set([...(state.visitedSteps || [1]), next])).sort((a, b) => a - b),
+          }
+        }),
 
       previousStep: () =>
-        set((state) => ({
-          currentStep: Math.max(state.currentStep - 1, 1),
-        })),
+        set((state) => {
+          const prev = Math.max(state.currentStep - 1, 1)
+          return {
+            currentStep: prev,
+            visitedSteps: Array.from(new Set([...(state.visitedSteps || [1]), prev])).sort((a, b) => a - b),
+          }
+        }),
 
       reset: () => set(initialState),
     }),
