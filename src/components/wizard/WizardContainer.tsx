@@ -1,4 +1,5 @@
 import { useExperiment } from '@/hooks/useExperiment'
+import { useAIChatStore } from '@/store/aiChatStore'
 import { Button } from '../common/Button'
 import { ExperimentType } from '@/types'
 import { Step1ExperimentType } from './steps/Step1ExperimentType'
@@ -12,6 +13,7 @@ import { Step8Summary } from './steps/Step8Summary'
 
 export function WizardContainer() {
   const { currentStep, previousStep, nextStep, experimentType, metrics, statisticalParams, reset } = useExperiment()
+  const resetChatConversation = useAIChatStore((state) => state.resetConversation)
 
   const renderStep = () => {
     switch (currentStep) {
@@ -57,6 +59,11 @@ export function WizardContainer() {
     }
   }
 
+  const handleReset = () => {
+    reset()
+    resetChatConversation()
+  }
+
   return (
     <div className="w-full">
       <div className="mb-8 min-h-[500px]">
@@ -81,7 +88,7 @@ export function WizardContainer() {
           )}
 
           <div className="flex w-full gap-2 sm:w-auto sm:justify-end">
-            <Button variant="ghost" onClick={reset} size="md" className="flex-1 sm:flex-none">
+            <Button variant="ghost" onClick={handleReset} size="md" className="flex-1 sm:flex-none">
               Reset
             </Button>
             {currentStep < 8 ? (

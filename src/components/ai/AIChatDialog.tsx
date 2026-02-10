@@ -47,7 +47,7 @@ const MIN_WIDTH = 340
 const MIN_HEIGHT = 380
 const DEFAULT_WIDTH = 420
 const DEFAULT_HEIGHT = 560
-const COMPACT_VIEWPORT_BREAKPOINT = 640
+const COMPACT_VIEWPORT_BREAKPOINT = 1024
 const DEMO_STAGE_DELAY_MS = 550
 
 const STEP_MAP: Record<string, number> = {
@@ -380,7 +380,19 @@ interface AIChatDialogProps {
 }
 
 export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
-  const { messages, isOpen, apiKey, isDemo, isLoading, addMessage, setLoading, setDemo, clearMessages, setOpen } =
+  const {
+    messages,
+    isOpen,
+    apiKey,
+    isDemo,
+    isLoading,
+    resetVersion,
+    addMessage,
+    setLoading,
+    setDemo,
+    resetConversation,
+    setOpen,
+  } =
     useAIChatStore()
   const experimentStore = useExperimentStore()
 
@@ -511,6 +523,19 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
 
     addMessage({ role: 'assistant', content: GREETING_MESSAGE })
   }, [isDialogVisible, messages.length, addMessage])
+
+  // Reset local UI state to the initial welcome screen when the conversation is externally reset.
+  useEffect(() => {
+    if (resetVersion === 0) return
+    demoRunIdRef.current = Date.now()
+    setInput('')
+    setAuthUsername('')
+    setAuthPassword('')
+    setShowAuthUnlockOption(false)
+    setShowAuthForm(false)
+    setIsAuthenticating(false)
+    setShowStarterOptions(true)
+  }, [resetVersion])
 
   const applyFunctionCalls = useCallback(
     (calls: FunctionCall[]): string => {
@@ -1148,12 +1173,12 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   return (
     <div
       ref={dialogRef}
-      className={`flex h-full flex-col overflow-hidden ${
+      className={`flex min-h-0 flex-col overflow-hidden ${
         isPopupMode
           ? isCompactViewport
             ? 'fixed inset-x-0 bottom-0 z-[100] h-[50dvh] rounded-t-2xl border-x border-t border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
             : 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
-          : 'relative w-full bg-gradient-to-b from-primary-50/30 via-white to-white'
+          : 'relative h-full w-full bg-gradient-to-b from-primary-50/30 via-white to-white'
       }`}
       style={
         isPopupMode && !isCompactViewport
@@ -1226,10 +1251,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
             {isReady && messages.length > 0 && (
               <button
                 onClick={() => {
-                  demoRunIdRef.current = Date.now()
-                  setLoading(false)
-                  setShowStarterOptions(true)
-                  clearMessages()
+                  resetConversation()
                 }}
                 className={`rounded-lg p-1.5 transition-colors ${
                   isPopupMode ? 'text-primary-100/80 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'

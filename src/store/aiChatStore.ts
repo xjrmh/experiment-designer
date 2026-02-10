@@ -16,6 +16,7 @@ interface AIChatState {
   apiKey: string
   isDemo: boolean
   isLoading: boolean
+  resetVersion: number
 
   toggleChat: () => void
   setOpen: (open: boolean) => void
@@ -24,6 +25,7 @@ interface AIChatState {
   setApiKey: (key: string) => void
   setDemo: (isDemo: boolean) => void
   clearMessages: () => void
+  resetConversation: () => void
 }
 
 export const useAIChatStore = create<AIChatState>()(
@@ -34,6 +36,7 @@ export const useAIChatStore = create<AIChatState>()(
       apiKey: '',
       isDemo: false,
       isLoading: false,
+      resetVersion: 0,
 
       toggleChat: () => set((state) => ({ isOpen: !state.isOpen })),
       setOpen: (open) => set({ isOpen: open }),
@@ -65,6 +68,13 @@ export const useAIChatStore = create<AIChatState>()(
       setDemo: (isDemo) => set({ isDemo }),
 
       clearMessages: () => set({ messages: [] }),
+
+      resetConversation: () =>
+        set((state) => ({
+          messages: [],
+          isLoading: false,
+          resetVersion: state.resetVersion + 1,
+        })),
     }),
     {
       name: 'ai-chat-storage',

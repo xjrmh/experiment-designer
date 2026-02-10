@@ -15,7 +15,7 @@ export function AIChatButton() {
       `}
     >
       <svg
-        className="w-4 h-4 opacity-90"
+        className="h-5 w-5 opacity-90"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
