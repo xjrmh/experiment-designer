@@ -10,16 +10,12 @@ export function AIChatButton() {
       className={`
         group inline-flex lg:hidden items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
         transition-colors transition-transform duration-150 cursor-pointer select-none active:translate-y-px
-        border border-slate-900 bg-slate-900 text-white hover:border-slate-800 hover:bg-slate-800
-        ${isOpen ? 'ring-2 ring-slate-400' : ''}
+        border border-primary-600 bg-primary-600 text-white hover:border-primary-500 hover:bg-primary-500
+        ${isOpen ? 'ring-2 ring-primary-300' : ''}
       `}
     >
-      <span className="relative flex h-2 w-2">
-        <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 ${isOpen ? '' : 'animate-ping'} opacity-75`} />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-      </span>
       <svg
-        className="w-4 h-4 opacity-80"
+        className="w-4 h-4 opacity-90"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}

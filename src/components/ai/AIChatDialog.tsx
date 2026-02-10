@@ -651,8 +651,8 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
       ref={dialogRef}
       className={`flex h-full flex-col overflow-hidden ${
         isPopupMode
-          ? 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white animate-in'
-          : 'relative w-full bg-white'
+          ? 'fixed z-[100] rounded-[1.5rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/60 animate-in'
+          : 'relative w-full bg-gradient-to-b from-primary-50/30 via-white to-white'
       }`}
       style={
         isPopupMode
@@ -683,7 +683,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
           className="absolute top-0 left-0 w-4 h-4 z-10 cursor-nw-resize"
           style={{ touchAction: 'none' }}
         >
-          <svg className="w-3 h-3 m-0.5 text-slate-500 rotate-180" viewBox="0 0 10 10" fill="currentColor">
+          <svg className="w-3 h-3 m-0.5 text-slate-400/80 rotate-180" viewBox="0 0 10 10" fill="currentColor">
             <path d="M0 10L10 0v3L3 10z" />
             <path d="M0 10L10 0v0.5L0.5 10z" opacity="0.5" />
             <path d="M4 10L10 4v3L7 10z" />
@@ -691,21 +691,25 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         </div>
       )}
 
-      <div className={`shrink-0 ${isPopupMode ? '' : 'border-b border-slate-100 bg-white px-4 py-3 sm:px-6 lg:px-8'}`}>
+      <div
+        className={`shrink-0 ${
+          isPopupMode ? '' : 'border-b border-slate-200 bg-gradient-to-r from-primary-50/40 via-white to-primary-50/20 px-4 py-3 sm:px-6 lg:px-8'
+        }`}
+      >
         <div
           onPointerDown={isPopupMode ? onDragStart : undefined}
           onPointerMove={isPopupMode ? onDragMove : undefined}
           onPointerUp={isPopupMode ? onDragEnd : undefined}
           className={`flex items-center justify-between select-none ${
             isPopupMode
-              ? 'h-12 px-4 bg-slate-900 text-slate-100 cursor-grab active:cursor-grabbing'
+              ? 'h-12 px-4 bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 text-white cursor-grab active:cursor-grabbing'
               : 'h-[51px] text-slate-900'
           }`}
           style={isPopupMode ? { touchAction: 'none' } : undefined}
         >
           <div className={`flex items-center gap-2.5 ${isPopupMode ? 'pointer-events-none' : ''}`}>
-            <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isPopupMode ? 'bg-sky-400/20' : 'bg-blue-100'}`}>
-              <svg className={`h-4 w-4 ${isPopupMode ? 'text-sky-300' : 'text-blue-500'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isPopupMode ? 'bg-white/20' : 'bg-primary-100'}`}>
+              <svg className={`h-4 w-4 ${isPopupMode ? 'text-primary-100' : 'text-primary-600'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -725,7 +729,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
                   clearMessages()
                 }}
                 className={`rounded-lg p-1.5 transition-colors ${
-                  isPopupMode ? 'text-slate-400 hover:bg-white/10 hover:text-slate-100' : 'text-blue-400 hover:bg-blue-100 hover:text-blue-600'
+                  isPopupMode ? 'text-primary-100/80 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
                 }`}
                 title="New conversation"
               >
@@ -741,7 +745,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
             {isPopupMode && (
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100"
+                className="rounded-lg p-1.5 text-primary-100/80 transition-colors hover:bg-white/20 hover:text-white"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -754,25 +758,39 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
 
       {/* Body */}
       <>
-        <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
+        <div className="flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-primary-50/30 via-white to-white p-4">
           {messages.map((msg) => (
             <AIChatMessage key={msg.id} message={msg} />
           ))}
 
           {shouldShowStarterOptions && (
-            <div className="w-full max-w-[85%] rounded-2xl rounded-bl-md border border-blue-100 bg-white p-3">
+            <div className="w-full max-w-[85%] rounded-2xl rounded-bl-md border border-slate-200 bg-white p-3 shadow-sm">
               <div className="space-y-2">
                 <button
-                  onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-                  className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors transition-transform active:translate-y-px ${
-                    shouldHighlightTryYourself
-                      ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-white'
-                      : 'border-blue-200 bg-blue-50 hover:border-blue-300 hover:bg-blue-100'
-                  }`}
+                  onClick={() => startSelfGuidedDemo()}
+                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
                 >
                   <div
                     className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                      shouldHighlightTryYourself ? 'bg-slate-100 text-slate-700' : 'bg-blue-500 text-white'
+                      shouldHighlightTryYourself ? 'bg-primary-600 text-white' : 'bg-primary-500 text-white'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Start a new experiment</div>
+                    <div className="text-xs text-slate-500">Begin a fresh experiment setup from scratch</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
+                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
+                >
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+                      shouldHighlightTryYourself ? 'bg-primary-100 text-primary-700' : 'bg-primary-500 text-white'
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -786,9 +804,9 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
                 </button>
                 <button
                   onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors transition-transform hover:border-slate-300 hover:bg-white active:translate-y-px"
+                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
                 >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 shrink-0">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 text-primary-700 shrink-0">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
                     </svg>
@@ -798,39 +816,17 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
                     <div className="text-xs text-slate-500">Network-effect cluster preset with advanced guardrails</div>
                   </div>
                 </button>
-                <button
-                  onClick={() => startSelfGuidedDemo()}
-                  className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors transition-transform active:translate-y-px ${
-                    shouldHighlightTryYourself
-                      ? 'border-blue-200 bg-blue-50 hover:border-blue-300 hover:bg-blue-100'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-white'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                      shouldHighlightTryYourself ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Start a new experiment</div>
-                    <div className="text-xs text-slate-500">Begin a fresh experiment setup from scratch</div>
-                  </div>
-                </button>
               </div>
             </div>
           )}
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-md bg-blue-50 px-4 py-3">
+              <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-primary-50 px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '0ms' }} />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '150ms' }} />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-blue-300" style={{ animationDelay: '300ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -839,7 +835,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSend} className="flex shrink-0 items-end gap-2 border-t border-blue-100 bg-white p-3">
+        <form onSubmit={handleSend} className="flex shrink-0 items-end gap-2 border-t border-slate-200 bg-white p-3">
           <textarea
             ref={inputRef}
             value={input}
@@ -848,12 +844,12 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
             placeholder={isReady ? 'Describe your experiment...' : 'Choose an option above to start...'}
             disabled={isLoading || !isReady}
             rows={2}
-            className="min-h-[44px] max-h-36 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:opacity-50"
+            className="min-h-[44px] max-h-36 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={isLoading || !isReady || !input.trim()}
-            className="rounded-xl border border-blue-600 bg-blue-600 px-3 py-2 text-white transition-colors transition-transform hover:border-blue-500 hover:bg-blue-500 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl border border-primary-600 bg-primary-600 px-3 py-2 text-white transition-colors transition-transform hover:border-primary-500 hover:bg-primary-500 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path

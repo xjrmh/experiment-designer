@@ -34,7 +34,6 @@ export function Header({ orientation = 'horizontal' }: HeaderProps) {
               <span className="font-medium text-slate-400">Guided Workflow</span>
             </span>
           </div>
-          <span className="mt-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
         </div>
       </header>
     )
@@ -54,8 +53,7 @@ export function Header({ orientation = 'horizontal' }: HeaderProps) {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden items-center gap-1.5 sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <div className="hidden items-center sm:flex">
             <span className="text-xs text-slate-400">Ready</span>
           </div>
         </div>
