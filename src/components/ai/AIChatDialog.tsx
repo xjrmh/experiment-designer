@@ -357,7 +357,10 @@ function formatChatErrorMessage(error: unknown): string {
   if (!normalized) return 'Unknown error.'
 
   if (/demo mode is not available/i.test(normalized)) {
-    return 'Demo mode is unavailable on this server. Add OPENAI_API_KEY to .env.local.'
+    return 'Demo mode is unavailable on this server. Configure CHAT_API_BASE_URL / CHAT_MODEL (and CHAT_API_KEY if required).'
+  }
+  if (/does not support tools|tool.*not supported|function.*not supported/i.test(normalized)) {
+    return 'Your current model does not support tool calling. The app can still chat, but auto-configuring wizard fields may be limited.'
   }
   if (/chat authentication required|invalid chat credentials|unauthorized/i.test(normalized)) {
     return 'Chat access is protected. Use "Unlock protected chat" in starter options, then try again.'

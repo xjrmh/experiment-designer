@@ -3,6 +3,91 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import type { Plugin } from 'vite'
 
+const DEFAULT_CHAT_API_BASE_URL = 'https://api.openai.com/v1'
+const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
+
+function getTrimmedEnv(env: Record<string, string>, name: string): string | undefined {
+  const value = env[name]?.trim()
+  return value ? value : undefined
+}
+
+function normalizeApiBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/g, '')
+}
+
+function getChatApiBaseUrl(env: Record<string, string>): string {
+  return normalizeApiBaseUrl(getTrimmedEnv(env, 'CHAT_API_BASE_URL') || DEFAULT_CHAT_API_BASE_URL)
+}
+
+function getChatModel(env: Record<string, string>): string {
+  return getTrimmedEnv(env, 'CHAT_MODEL') || DEFAULT_CHAT_MODEL
+}
+
+function getChatApiKey(env: Record<string, string>): string | undefined {
+  return getTrimmedEnv(env, 'CHAT_API_KEY') || getTrimmedEnv(env, 'OPENAI_API_KEY')
+}
+
+function isOpenAIHostedBaseUrl(baseUrl: string): boolean {
+  try {
+    const parsed = new URL(baseUrl)
+    return parsed.hostname === 'api.openai.com'
+  } catch {
+    return false
+  }
+}
+
+function getSafeErrorMessage(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const payload = data as Record<string, unknown>
+
+  if (
+    payload.error &&
+    typeof payload.error === 'object' &&
+    typeof (payload.error as Record<string, unknown>).message === 'string'
+  ) {
+    return (payload.error as Record<string, unknown>).message as string
+  }
+
+  if (typeof payload.error === 'string') {
+    return payload.error
+  }
+
+  return null
+}
+
+function isToolsUnsupportedMessage(message: string | null): boolean {
+  if (!message) return false
+  return (
+    /does not support tools/i.test(message) ||
+    /tool.*not supported/i.test(message) ||
+    /function.*not supported/i.test(message) ||
+    /unsupported.*tool/i.test(message)
+  )
+}
+
+async function sendUpstreamChatCompletion(
+  apiBaseUrl: string,
+  headers: Record<string, string>,
+  payload: Record<string, unknown>
+): Promise<{ response: Response; data: unknown; parseError: boolean }> {
+  const response = await fetch(`${apiBaseUrl}/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+
+  const raw = await response.text()
+  if (!raw) {
+    return { response, data: {}, parseError: false }
+  }
+
+  try {
+    return { response, data: JSON.parse(raw) as unknown, parseError: false }
+  } catch {
+    return { response, data: {}, parseError: true }
+  }
+}
+
 function apiProxyPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'api-chat-proxy',
@@ -14,10 +99,13 @@ function apiProxyPlugin(env: Record<string, string>): Plugin {
           return
         }
 
-        const apiKey = env.OPENAI_API_KEY
-        if (!apiKey) {
+        const apiBaseUrl = getChatApiBaseUrl(env)
+        const chatModel = getChatModel(env)
+        const apiKey = getChatApiKey(env)
+
+        if (isOpenAIHostedBaseUrl(apiBaseUrl) && !apiKey) {
           res.statusCode = 503
-          res.end(JSON.stringify({ error: 'Demo mode is not available. Set OPENAI_API_KEY in .env.local' }))
+          res.end(JSON.stringify({ error: 'Demo mode is not available. Set CHAT_API_KEY (or OPENAI_API_KEY) in .env.local.' }))
           return
         }
 
@@ -26,32 +114,64 @@ function apiProxyPlugin(env: Record<string, string>): Plugin {
           body += chunk
         }
 
-        const { messages, tools } = JSON.parse(body)
+        let parsedBody: { messages?: unknown; tools?: unknown } = {}
+        try {
+          parsedBody = body ? JSON.parse(body) : {}
+        } catch {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Invalid JSON request body.' }))
+          return
+        }
+        const { messages, tools } = parsedBody
 
         try {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages,
-              tools,
-              tool_choice: 'auto',
-              temperature: 0.7,
-              max_tokens: 1024,
-            }),
-          })
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+          }
+          if (apiKey) {
+            headers.Authorization = `Bearer ${apiKey}`
+          }
 
-          const data = await response.json()
+          const hasTools = Array.isArray(tools) && tools.length > 0
+          const basePayload: Record<string, unknown> = {
+            model: chatModel,
+            messages,
+            temperature: 0.7,
+            max_tokens: 1024,
+          }
+
+          let result = await sendUpstreamChatCompletion(
+            apiBaseUrl,
+            headers,
+            hasTools ? { ...basePayload, tools, tool_choice: 'auto' } : basePayload
+          )
+          if (result.parseError) {
+            res.statusCode = 502
+            res.end(JSON.stringify({ error: 'Malformed response from upstream chat API.' }))
+            return
+          }
+
+          const firstErrorMessage = getSafeErrorMessage(result.data)
+          if (
+            hasTools &&
+            !result.response.ok &&
+            result.response.status === 400 &&
+            isToolsUnsupportedMessage(firstErrorMessage)
+          ) {
+            result = await sendUpstreamChatCompletion(apiBaseUrl, headers, basePayload)
+            if (result.parseError) {
+              res.statusCode = 502
+              res.end(JSON.stringify({ error: 'Malformed response from upstream chat API.' }))
+              return
+            }
+          }
+
           res.setHeader('Content-Type', 'application/json')
-          res.statusCode = response.ok ? 200 : response.status
-          res.end(JSON.stringify(data))
+          res.statusCode = result.response.ok ? 200 : result.response.status
+          res.end(JSON.stringify(result.data))
         } catch {
           res.statusCode = 500
-          res.end(JSON.stringify({ error: 'Failed to contact OpenAI' }))
+          res.end(JSON.stringify({ error: 'Failed to contact upstream chat API.' }))
         }
       })
     },

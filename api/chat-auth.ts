@@ -49,8 +49,11 @@ function getChatSessionSecret(): string | null {
   const configuredSecret = process.env.CHAT_SESSION_SECRET?.trim()
   if (configuredSecret) return configuredSecret
 
-  const apiKeySecret = process.env.OPENAI_API_KEY?.trim()
-  if (apiKeySecret) return apiKeySecret
+  const chatApiKeySecret = process.env.CHAT_API_KEY?.trim()
+  if (chatApiKeySecret) return chatApiKeySecret
+
+  const openAiApiKeySecret = process.env.OPENAI_API_KEY?.trim()
+  if (openAiApiKeySecret) return openAiApiKeySecret
 
   return null
 }

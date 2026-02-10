@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createHmac } from 'node:crypto'
 
-const CHAT_MODEL = 'gpt-4o-mini'
+const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
 const CHAT_TEMPERATURE = 0.85
-const DEFAULT_OPENAI_TIMEOUT_MS = 20_000
+const DEFAULT_CHAT_API_BASE_URL = 'https://api.openai.com/v1'
+const DEFAULT_CHAT_TIMEOUT_MS = 20_000
 const DEFAULT_RATE_LIMIT_MAX = 30
 const DEFAULT_RATE_LIMIT_WINDOW_SEC = 60
 const DEFAULT_MAX_BODY_BYTES = 100_000
@@ -24,6 +25,12 @@ type OpenAIChatMessage = {
 interface ValidatedRequestBody {
   messages: OpenAIChatMessage[]
   tools?: unknown[]
+}
+
+interface UpstreamChatResult {
+  response: Response
+  data: unknown
+  parseError: boolean
 }
 
 interface RateLimitResult {
@@ -65,6 +72,36 @@ function getHeaderValue(header: string | string[] | undefined): string | undefin
   return undefined
 }
 
+function getTrimmedEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim()
+  return value ? value : undefined
+}
+
+function normalizeApiBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/g, '')
+}
+
+function getChatApiBaseUrl(): string {
+  return normalizeApiBaseUrl(getTrimmedEnv('CHAT_API_BASE_URL') || DEFAULT_CHAT_API_BASE_URL)
+}
+
+function getChatModel(): string {
+  return getTrimmedEnv('CHAT_MODEL') || DEFAULT_CHAT_MODEL
+}
+
+function getChatApiKey(): string | null {
+  return getTrimmedEnv('CHAT_API_KEY') || getTrimmedEnv('OPENAI_API_KEY') || null
+}
+
+function isOpenAIHostedBaseUrl(baseUrl: string): boolean {
+  try {
+    const parsed = new URL(baseUrl)
+    return parsed.hostname === 'api.openai.com'
+  } catch {
+    return false
+  }
+}
+
 function getChatSessionCookieName(): string {
   return process.env.CHAT_SESSION_COOKIE_NAME?.trim() || DEFAULT_CHAT_SESSION_COOKIE_NAME
 }
@@ -74,8 +111,11 @@ function getChatSessionSecret(): string | null {
   if (configuredSecret) return configuredSecret
 
   // Fallback for easier setup in small deployments.
-  const apiKeySecret = process.env.OPENAI_API_KEY?.trim()
-  if (apiKeySecret) return apiKeySecret
+  const chatApiKey = getTrimmedEnv('CHAT_API_KEY')
+  if (chatApiKey) return chatApiKey
+
+  const openAiApiKey = getTrimmedEnv('OPENAI_API_KEY')
+  if (openAiApiKey) return openAiApiKey
 
   return null
 }
@@ -425,6 +465,49 @@ function getSafeErrorMessage(data: unknown): string | null {
   return null
 }
 
+function isToolsUnsupportedMessage(message: string | null): boolean {
+  if (!message) return false
+  return (
+    /does not support tools/i.test(message) ||
+    /tool.*not supported/i.test(message) ||
+    /function.*not supported/i.test(message) ||
+    /unsupported.*tool/i.test(message)
+  )
+}
+
+async function sendUpstreamChatCompletion(
+  apiBaseUrl: string,
+  headers: Record<string, string>,
+  payload: Record<string, unknown>,
+  signal: AbortSignal
+): Promise<UpstreamChatResult> {
+  const response = await fetch(`${apiBaseUrl}/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    signal,
+  })
+
+  const raw = await response.text()
+  if (!raw) {
+    return { response, data: {}, parseError: false }
+  }
+
+  try {
+    return {
+      response,
+      data: JSON.parse(raw) as unknown,
+      parseError: false,
+    }
+  } catch {
+    return {
+      response,
+      data: {},
+      parseError: true,
+    }
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
@@ -470,62 +553,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { messages, tools } = validatedBody.value
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return res.status(503).json({ error: 'Demo mode is not available. Set OPENAI_API_KEY.' })
+  const apiBaseUrl = getChatApiBaseUrl()
+  const model = getChatModel()
+  const apiKey = getChatApiKey()
+
+  // OpenAI endpoints always require a key.
+  if (isOpenAIHostedBaseUrl(apiBaseUrl) && !apiKey) {
+    return res
+      .status(503)
+      .json({ error: 'Demo mode is not available. Set CHAT_API_KEY (or OPENAI_API_KEY).' })
   }
 
-  const timeoutMs = getPositiveIntFromEnv('CHAT_OPENAI_TIMEOUT_MS', DEFAULT_OPENAI_TIMEOUT_MS)
+  const timeoutMs = getPositiveIntFromEnv(
+    'CHAT_API_TIMEOUT_MS',
+    getPositiveIntFromEnv('CHAT_OPENAI_TIMEOUT_MS', DEFAULT_CHAT_TIMEOUT_MS)
+  )
   const controller = new AbortController()
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: CHAT_MODEL,
-        messages,
-        tools,
-        tool_choice: 'auto',
-        temperature: CHAT_TEMPERATURE,
-        max_tokens: 1024,
-      }),
-      signal: controller.signal,
-    })
-
-    const raw = await response.text()
-    let data: unknown = {}
-    try {
-      data = raw ? JSON.parse(raw) : {}
-    } catch {
-      return res.status(502).json({ error: 'Malformed response from OpenAI.' })
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`
     }
 
-    if (!response.ok) {
-      const upstreamMessage = getSafeErrorMessage(data)
-
-      if (response.status === 429) {
-        return res.status(429).json({ error: 'OpenAI rate limit reached. Please retry shortly.' })
-      }
-      if (response.status === 400) {
-        return res.status(400).json({ error: upstreamMessage || 'Invalid OpenAI request payload.' })
-      }
-      if (response.status === 401 || response.status === 403) {
-        return res.status(502).json({ error: 'OpenAI authentication failed on the server.' })
-      }
-
-      return res.status(502).json({ error: 'OpenAI request failed.' })
+    const hasTools = Array.isArray(tools) && tools.length > 0
+    const basePayload: Record<string, unknown> = {
+      model,
+      messages,
+      temperature: CHAT_TEMPERATURE,
+      max_tokens: 1024,
     }
 
-    return res.status(200).json(data)
+    let result = await sendUpstreamChatCompletion(
+      apiBaseUrl,
+      headers,
+      hasTools ? { ...basePayload, tools, tool_choice: 'auto' } : basePayload,
+      controller.signal
+    )
+
+    if (result.parseError) {
+      return res.status(502).json({ error: 'Malformed response from upstream chat API.' })
+    }
+
+    const firstAttemptMessage = getSafeErrorMessage(result.data)
+    if (
+      hasTools &&
+      !result.response.ok &&
+      result.response.status === 400 &&
+      isToolsUnsupportedMessage(firstAttemptMessage)
+    ) {
+      // Some local models (e.g. certain Ollama variants) do not support tool calling.
+      result = await sendUpstreamChatCompletion(apiBaseUrl, headers, basePayload, controller.signal)
+      if (result.parseError) {
+        return res.status(502).json({ error: 'Malformed response from upstream chat API.' })
+      }
+    }
+
+    if (!result.response.ok) {
+      const upstreamMessage = getSafeErrorMessage(result.data)
+
+      if (result.response.status === 429) {
+        return res.status(429).json({ error: 'Chat API rate limit reached. Please retry shortly.' })
+      }
+      if (result.response.status === 400) {
+        return res.status(400).json({ error: upstreamMessage || 'Invalid chat request payload.' })
+      }
+      if (result.response.status === 401 || result.response.status === 403) {
+        return res.status(502).json({ error: 'Chat API authentication failed on the server.' })
+      }
+
+      return res.status(502).json({ error: 'Upstream chat API request failed.' })
+    }
+
+    return res.status(200).json(result.data)
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      return res.status(504).json({ error: 'OpenAI request timed out.' })
+      return res.status(504).json({ error: 'Chat API request timed out.' })
     }
-    return res.status(502).json({ error: 'Failed to contact OpenAI.' })
+    return res.status(502).json({ error: 'Failed to contact upstream chat API.' })
   } finally {
     clearTimeout(timeoutHandle)
   }

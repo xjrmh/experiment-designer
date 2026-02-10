@@ -60,16 +60,19 @@ npm run preview
 
 The app will be available at **http://localhost:5173/**
 
-## AI Chat Security (Vercel)
+## AI Chat Configuration (OpenAI + Local Models)
 
-The `/api/chat` endpoint supports server-side hardening controls:
+The `/api/chat` endpoint supports any **OpenAI-compatible** backend (OpenAI, DeepSeek-compatible gateway, Ollama/LM Studio OpenAI endpoint, etc.).
 
-- Required:
-  - `OPENAI_API_KEY`
+- Core model configuration:
+  - `CHAT_API_BASE_URL` (default `https://api.openai.com/v1`)
+  - `CHAT_MODEL` (default `gpt-4o-mini`)
+  - `CHAT_API_KEY` (optional for local endpoints; required for OpenAI-hosted API)
+  - Backward compatibility: `OPENAI_API_KEY` is still accepted as a fallback key
 - Optional authentication:
   - `CHAT_BASIC_AUTH_USER`
   - `CHAT_BASIC_AUTH_PASS`
-  - `CHAT_SESSION_SECRET` (recommended; falls back to `OPENAI_API_KEY` if unset)
+  - `CHAT_SESSION_SECRET` (recommended; falls back to `CHAT_API_KEY`, then `OPENAI_API_KEY`)
   - `CHAT_SESSION_TTL_SEC` (default `3600`)
   - `CHAT_SESSION_COOKIE_NAME` (default `chat_session`)
 - Optional rate limiting:
@@ -80,13 +83,24 @@ The `/api/chat` endpoint supports server-side hardening controls:
     - `UPSTASH_REDIS_REST_TOKEN`
 - Optional request guardrails:
   - `CHAT_ALLOWED_ORIGINS` (comma-separated list)
-  - `CHAT_OPENAI_TIMEOUT_MS` (default `20000`)
+  - `CHAT_API_TIMEOUT_MS` (default `20000`, legacy alias: `CHAT_OPENAI_TIMEOUT_MS`)
   - `CHAT_MAX_BODY_BYTES`
   - `CHAT_MAX_MESSAGES`
   - `CHAT_MAX_MESSAGE_CHARS`
   - `CHAT_MAX_SYSTEM_MESSAGE_CHARS` (default `20000`)
   - `CHAT_MAX_TOTAL_CHARS`
   - `CHAT_MAX_TOOLS`
+
+Example `.env.local` for a local DeepSeek model served via an OpenAI-compatible endpoint:
+
+```bash
+CHAT_API_BASE_URL=http://127.0.0.1:11434/v1
+CHAT_MODEL=deepseek-r1:8b
+# Optional, only if your local gateway expects a bearer token:
+# CHAT_API_KEY=ollama
+```
+
+Note: if the selected model does not support OpenAI tool-calling, chat will automatically fall back to plain text responses (without structured function calls).
 
 When auth is enabled, the frontend can unlock chat by calling `/api/chat-auth` once with credentials.
 The server sets an HttpOnly signed session cookie, and `/api/chat` accepts that cookie.

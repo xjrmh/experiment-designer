@@ -11,7 +11,13 @@ import type {
   MultipleTestingCorrection,
 } from '@/types'
 
-const CHAT_MODEL = 'gpt-4o-mini'
+const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
+const DEFAULT_CHAT_API_BASE_URL = 'https://api.openai.com/v1'
+const CHAT_MODEL = import.meta.env.VITE_CHAT_MODEL?.trim() || DEFAULT_CHAT_MODEL
+const CHAT_API_BASE_URL = (import.meta.env.VITE_CHAT_API_BASE_URL?.trim() || DEFAULT_CHAT_API_BASE_URL).replace(
+  /\/+$/g,
+  ''
+)
 const CHAT_TEMPERATURE = 0.85
 
 interface OpenAIMessage {
@@ -22,6 +28,69 @@ interface OpenAIMessage {
     type: 'function'
     function: { name: string; arguments: string }
   }>
+}
+
+function getApiErrorMessage(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+
+  const payload = data as Record<string, unknown>
+  if (
+    payload.error &&
+    typeof payload.error === 'object' &&
+    typeof (payload.error as Record<string, unknown>).message === 'string'
+  ) {
+    return (payload.error as Record<string, unknown>).message as string
+  }
+
+  if (typeof payload.error === 'string') {
+    return payload.error
+  }
+
+  return null
+}
+
+function isToolsUnsupportedMessage(message: string | null): boolean {
+  if (!message) return false
+  return (
+    /does not support tools/i.test(message) ||
+    /tool.*not supported/i.test(message) ||
+    /function.*not supported/i.test(message) ||
+    /unsupported.*tool/i.test(message)
+  )
+}
+
+async function postChatCompletion(
+  url: string,
+  apiKey: string,
+  payload: Record<string, unknown>
+): Promise<{ response: Response; data: unknown; parseError: boolean }> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const raw = await response.text()
+  if (!raw) {
+    return { response, data: {}, parseError: false }
+  }
+
+  try {
+    return {
+      response,
+      data: JSON.parse(raw) as unknown,
+      parseError: false,
+    }
+  } catch {
+    return {
+      response,
+      data: {},
+      parseError: true,
+    }
+  }
 }
 
 // --- Per-function argument types ---
@@ -181,7 +250,9 @@ export async function sendChatMessage(
         typeof error.error === 'string' &&
         /demo mode is not available/i.test(error.error)
       ) {
-        throw new Error('Demo mode is not available. Add OPENAI_API_KEY to .env.local.')
+        throw new Error(
+          'Demo mode is not available. Configure CHAT_API_BASE_URL / CHAT_MODEL (and CHAT_API_KEY if required).'
+        )
       }
       if (response.status === 401) {
         throw new Error('Chat authentication required. Unlock protected chat and try again.')
@@ -196,38 +267,50 @@ export async function sendChatMessage(
       throw new Error('No API key available.')
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${trimmedApiKey}`,
-      },
-      body: JSON.stringify({
-        model: CHAT_MODEL,
-        messages: openaiMessages,
-        tools: AI_TOOL_FUNCTIONS,
-        tool_choice: 'auto',
-        temperature: CHAT_TEMPERATURE,
-        max_tokens: 1024,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({})
-      )
-      if (response.status === 401) {
-        throw new Error('Invalid API key. Please check your OpenAI API key and try again.')
-      }
-      throw new Error(error.error?.message || `OpenAI API error: ${response.status}`)
+    const basePayload: Record<string, unknown> = {
+      model: CHAT_MODEL,
+      messages: openaiMessages,
+      temperature: CHAT_TEMPERATURE,
+      max_tokens: 1024,
     }
 
-    data = await response.json()
+    let result = await postChatCompletion(`${CHAT_API_BASE_URL}/chat/completions`, trimmedApiKey, {
+      ...basePayload,
+      tools: AI_TOOL_FUNCTIONS,
+      tool_choice: 'auto',
+    })
+
+    if (result.parseError) {
+      throw new Error('Malformed response from chat provider.')
+    }
+
+    const firstAttemptMessage = getApiErrorMessage(result.data)
+    if (
+      !result.response.ok &&
+      result.response.status === 400 &&
+      isToolsUnsupportedMessage(firstAttemptMessage)
+    ) {
+      result = await postChatCompletion(`${CHAT_API_BASE_URL}/chat/completions`, trimmedApiKey, basePayload)
+      if (result.parseError) {
+        throw new Error('Malformed response from chat provider.')
+      }
+    }
+
+    if (!result.response.ok) {
+      const errorMessage = getApiErrorMessage(result.data)
+      if (result.response.status === 401) {
+        throw new Error('Invalid API key. Please check your chat API key and try again.')
+      }
+      throw new Error(errorMessage || `Chat API error: ${result.response.status}`)
+    }
+
+    data = result.data
   }
 
   const choice = data.choices?.[0]
 
   if (!choice) {
-    throw new Error('No response from OpenAI')
+    throw new Error('No response from chat provider')
   }
 
   const toolCalls = choice.message?.tool_calls
