@@ -42,12 +42,12 @@ function App() {
 
             {/* Scrollable main content */}
             <div className="flex-1 overflow-y-auto bg-slate-50">
-              <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-                <div className="p-5 sm:p-7 lg:p-8">
-                  <WizardContainer />
-                </div>
-              </main>
-              <div className="mt-auto">
+              <div className="flex min-h-full flex-col">
+                <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+                  <div className="p-5 sm:p-7 lg:p-8">
+                    <WizardContainer />
+                  </div>
+                </main>
                 <Footer />
               </div>
             </div>
