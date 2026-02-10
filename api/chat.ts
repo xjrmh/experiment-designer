@@ -9,6 +9,7 @@ const DEFAULT_RATE_LIMIT_WINDOW_SEC = 60
 const DEFAULT_MAX_BODY_BYTES = 100_000
 const DEFAULT_MAX_MESSAGES = 48
 const DEFAULT_MAX_MESSAGE_CHARS = 5_000
+const DEFAULT_MAX_SYSTEM_MESSAGE_CHARS = 20_000
 const DEFAULT_MAX_TOTAL_CHARS = 30_000
 const DEFAULT_MAX_TOOLS = 16
 const DEFAULT_CHAT_SESSION_COOKIE_NAME = 'chat_session'
@@ -230,6 +231,10 @@ function validateRequestBody(body: unknown): { ok: true; value: ValidatedRequest
 
   const maxMessages = getPositiveIntFromEnv('CHAT_MAX_MESSAGES', DEFAULT_MAX_MESSAGES)
   const maxMessageChars = getPositiveIntFromEnv('CHAT_MAX_MESSAGE_CHARS', DEFAULT_MAX_MESSAGE_CHARS)
+  const maxSystemMessageChars = getPositiveIntFromEnv(
+    'CHAT_MAX_SYSTEM_MESSAGE_CHARS',
+    DEFAULT_MAX_SYSTEM_MESSAGE_CHARS
+  )
   const maxTotalChars = getPositiveIntFromEnv('CHAT_MAX_TOTAL_CHARS', DEFAULT_MAX_TOTAL_CHARS)
   const maxTools = getPositiveIntFromEnv('CHAT_MAX_TOOLS', DEFAULT_MAX_TOOLS)
 
@@ -262,8 +267,12 @@ function validateRequestBody(body: unknown): { ok: true; value: ValidatedRequest
       return { ok: false, error: 'Each message content must be a string or null.' }
     }
     if (typeof content === 'string') {
-      if (content.length > maxMessageChars) {
-        return { ok: false, error: `Message content exceeds ${maxMessageChars} characters.` }
+      const maxCharsForRole = role === 'system' ? maxSystemMessageChars : maxMessageChars
+      if (content.length > maxCharsForRole) {
+        return {
+          ok: false,
+          error: `${role} message content exceeds ${maxCharsForRole} characters.`,
+        }
       }
       totalChars += content.length
       if (totalChars > maxTotalChars) {

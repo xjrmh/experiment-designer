@@ -84,6 +84,7 @@ The `/api/chat` endpoint supports server-side hardening controls:
   - `CHAT_MAX_BODY_BYTES`
   - `CHAT_MAX_MESSAGES`
   - `CHAT_MAX_MESSAGE_CHARS`
+  - `CHAT_MAX_SYSTEM_MESSAGE_CHARS` (default `20000`)
   - `CHAT_MAX_TOTAL_CHARS`
   - `CHAT_MAX_TOOLS`
 
