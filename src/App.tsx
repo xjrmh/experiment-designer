@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Header } from './components/layout/Header'
 import { Footer } from './components/layout/Footer'
 import { WizardContainer } from './components/wizard/WizardContainer'
 import { WizardProgress } from './components/wizard/WizardProgress'
 import { AIChatDialog } from './components/ai/AIChatDialog'
 import { AIChatButton } from './components/ai/AIChatButton'
+import { useAIChatStore } from './store/aiChatStore'
 
 const LG_BREAKPOINT = 1024
 
@@ -12,6 +13,9 @@ function App() {
   const [isLg, setIsLg] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= LG_BREAKPOINT : false
   )
+  const setChatOpen = useAIChatStore((state) => state.setOpen)
+  const chatMessagesCount = useAIChatStore((state) => state.messages.length)
+  const hasAutoOpenedWelcomeRef = useRef(false)
 
   useEffect(() => {
     const handleResize = () => {
@@ -20,6 +24,14 @@ function App() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    if (hasAutoOpenedWelcomeRef.current) return
+    if (!isLg && chatMessagesCount === 0) {
+      setChatOpen(true)
+      hasAutoOpenedWelcomeRef.current = true
+    }
+  }, [isLg, chatMessagesCount, setChatOpen])
 
   return (
     <div className={`flex min-h-screen h-dvh overflow-hidden bg-white ${isLg ? 'flex-row' : 'flex-col'}`}>

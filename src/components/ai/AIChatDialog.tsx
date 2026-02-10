@@ -405,7 +405,7 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   const [showAuthUnlockOption, setShowAuthUnlockOption] = useState(false)
   const [showAuthForm, setShowAuthForm] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
-  const [showStarterOptions, setShowStarterOptions] = useState(() => !(isDemo || !!apiKey))
+  const [showStarterOptions, setShowStarterOptions] = useState(true)
   const demoRunIdRef = useRef(0)
   const isPopupMode = mode === 'popup'
   const [isCompactViewport, setIsCompactViewport] = useState(() =>
