@@ -52,7 +52,15 @@ export const useAIChatStore = create<AIChatState>()(
 
       setLoading: (loading) => set({ isLoading: loading }),
 
-      setApiKey: (key) => set({ apiKey: key }),
+      setApiKey: (key) =>
+        set((state) => {
+          const trimmedKey = key.trim()
+          return {
+            apiKey: trimmedKey,
+            // If a personal key is provided, prefer direct mode.
+            isDemo: trimmedKey ? false : state.isDemo,
+          }
+        }),
 
       setDemo: (isDemo) => set({ isDemo }),
 

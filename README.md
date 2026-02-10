@@ -60,6 +60,36 @@ npm run preview
 
 The app will be available at **http://localhost:5173/**
 
+## AI Chat Security (Vercel)
+
+The `/api/chat` endpoint supports server-side hardening controls:
+
+- Required:
+  - `OPENAI_API_KEY`
+- Optional authentication:
+  - `CHAT_BASIC_AUTH_USER`
+  - `CHAT_BASIC_AUTH_PASS`
+  - `CHAT_SESSION_SECRET` (recommended; falls back to `OPENAI_API_KEY` if unset)
+  - `CHAT_SESSION_TTL_SEC` (default `3600`)
+  - `CHAT_SESSION_COOKIE_NAME` (default `chat_session`)
+- Optional rate limiting:
+  - `CHAT_RATE_LIMIT_MAX` (default `30`)
+  - `CHAT_RATE_LIMIT_WINDOW_SEC` (default `60`)
+  - For distributed/serverless-safe limits, set:
+    - `UPSTASH_REDIS_REST_URL`
+    - `UPSTASH_REDIS_REST_TOKEN`
+- Optional request guardrails:
+  - `CHAT_ALLOWED_ORIGINS` (comma-separated list)
+  - `CHAT_OPENAI_TIMEOUT_MS` (default `20000`)
+  - `CHAT_MAX_BODY_BYTES`
+  - `CHAT_MAX_MESSAGES`
+  - `CHAT_MAX_MESSAGE_CHARS`
+  - `CHAT_MAX_TOTAL_CHARS`
+  - `CHAT_MAX_TOOLS`
+
+When auth is enabled, the frontend can unlock chat by calling `/api/chat-auth` once with credentials.
+The server sets an HttpOnly signed session cookie, and `/api/chat` accepts that cookie.
+
 ## Usage
 
 1. **Select Experiment Type**: Choose the experiment methodology that fits your use case

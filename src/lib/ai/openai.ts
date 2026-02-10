@@ -52,6 +52,31 @@ export interface AIResponse {
   functionCalls: FunctionCall[]
 }
 
+export async function authenticateChatAccess(username: string, password: string): Promise<void> {
+  const trimmedUsername = username.trim()
+  if (!trimmedUsername || !password) {
+    throw new Error('Username and password are required.')
+  }
+
+  const response = await fetch('/api/chat-auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      username: trimmedUsername,
+      password,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    if (response.status === 401) {
+      throw new Error('Invalid chat credentials.')
+    }
+    throw new Error(error.error?.message || error.error || `Authentication error: ${response.status}`)
+  }
+}
+
 export async function sendChatMessage(
   apiKey: string,
   isDemo: boolean,
@@ -71,12 +96,15 @@ export async function sendChatMessage(
   ]
 
   let data: any
+  const trimmedApiKey = apiKey.trim()
+  const shouldUseDemoProxy = isDemo && !trimmedApiKey
 
-  if (isDemo) {
+  if (shouldUseDemoProxy) {
     // Route through Vercel serverless proxy — API key stays server-side
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({
         messages: openaiMessages,
         tools: AI_TOOL_FUNCTIONS,
@@ -85,13 +113,23 @@ export async function sendChatMessage(
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
+      if (
+        response.status === 503 &&
+        typeof error.error === 'string' &&
+        /demo mode is not available/i.test(error.error)
+      ) {
+        throw new Error('Demo mode is not available. Add OPENAI_API_KEY to .env.local.')
+      }
+      if (response.status === 401) {
+        throw new Error('Chat authentication required. Unlock protected chat and try again.')
+      }
       throw new Error(error.error?.message || error.error || `API error: ${response.status}`)
     }
 
     data = await response.json()
   } else {
     // Direct call with user's own API key
-    if (!apiKey) {
+    if (!trimmedApiKey) {
       throw new Error('No API key available.')
     }
 
@@ -99,7 +137,7 @@ export async function sendChatMessage(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${trimmedApiKey}`,
       },
       body: JSON.stringify({
         model: CHAT_MODEL,

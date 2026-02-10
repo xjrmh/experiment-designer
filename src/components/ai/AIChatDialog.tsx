@@ -10,6 +10,7 @@ import {
 import { useAIChatStore } from '@/store/aiChatStore'
 import { useExperimentStore } from '@/store/experimentStore'
 import {
+  authenticateChatAccess,
   sendChatMessage,
   type FunctionCall,
   type SetExperimentTypeArgs,
@@ -209,6 +210,25 @@ function ensureNextActionLine(message: string, nextAction: string): string {
   return `${trimmed}\n\n${nextAction}`
 }
 
+function formatChatErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return 'Unknown error.'
+  }
+
+  const normalized = error.message.trim().replace(/\s+/g, ' ')
+  if (!normalized) return 'Unknown error.'
+
+  if (/demo mode is not available/i.test(normalized)) {
+    return 'Demo mode is unavailable on this server. Add OPENAI_API_KEY to .env.local.'
+  }
+  if (/chat authentication required|invalid chat credentials|unauthorized/i.test(normalized)) {
+    return 'Chat access is protected. Use "Unlock protected chat" in starter options, then try again.'
+  }
+
+  const sanitized = normalized.replace(/[.?!]+$/g, '')
+  return `${sanitized}.`
+}
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, ms)
@@ -227,14 +247,17 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
   const experimentStore = useExperimentStore()
 
   const [input, setInput] = useState('')
+  const [authUsername, setAuthUsername] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [showAuthUnlockOption, setShowAuthUnlockOption] = useState(false)
+  const [showAuthForm, setShowAuthForm] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [showStarterOptions, setShowStarterOptions] = useState(() => !(isDemo || !!apiKey))
-  const [hasCompletedPresetDemo, setHasCompletedPresetDemo] = useState(false)
   const demoRunIdRef = useRef(0)
   const isPopupMode = mode === 'popup'
   const isDialogVisible = isPopupMode ? isOpen : true
 
   const isReady = isDemo || !!apiKey
-  const shouldHighlightTryYourself = hasCompletedPresetDemo
   const hasConversationStarted = messages.some(
     (m) => m.role === 'user' || (m.role === 'assistant' && m.content !== GREETING_MESSAGE)
   )
@@ -553,7 +576,6 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
           content: preset.completionMessage,
           configuredAction: `Configured demo: ${preset.name}`,
         })
-        setHasCompletedPresetDemo(true)
       } finally {
         if (!isStaleRun()) {
           setLoading(false)
@@ -569,6 +591,36 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
       setDemo(true)
     }
   }, [isDemo, apiKey, setDemo])
+
+  const handleUnlockProtectedChat = useCallback(
+    async (e?: FormEvent) => {
+      e?.preventDefault()
+      if (isAuthenticating) return
+
+      const username = authUsername.trim()
+      if (!username || !authPassword) return
+
+      setIsAuthenticating(true)
+      try {
+        await authenticateChatAccess(username, authPassword)
+        setShowAuthUnlockOption(true)
+        setShowAuthForm(false)
+        setAuthPassword('')
+        addMessage({
+          role: 'assistant',
+          content: 'Protected chat access unlocked.\n\nNext step: Ask me what experiment you want to design.',
+        })
+      } catch (error) {
+        addMessage({
+          role: 'assistant',
+          content: `Unable to unlock protected chat: ${formatChatErrorMessage(error)}\n\nPlease try again.`,
+        })
+      } finally {
+        setIsAuthenticating(false)
+      }
+    },
+    [authUsername, authPassword, isAuthenticating, addMessage]
+  )
 
   const handleSend = useCallback(
     async (e?: FormEvent) => {
@@ -623,9 +675,14 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
           })
         }
       } catch (err) {
+        if (err instanceof Error && /chat authentication required|invalid chat credentials|unauthorized/i.test(err.message)) {
+          setShowAuthUnlockOption(true)
+          setShowStarterOptions(true)
+          setShowAuthForm(true)
+        }
         addMessage({
           role: 'assistant',
-          content: `Sorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}. Please try again.`,
+          content: `Sorry, I encountered an error: ${formatChatErrorMessage(err)}\n\nPlease try again.`,
         })
       } finally {
         setLoading(false)
@@ -766,19 +823,60 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
           {shouldShowStarterOptions && (
             <div className="w-full max-w-[85%] rounded-2xl rounded-bl-md border border-slate-200 bg-white p-3 shadow-sm">
               <div className="space-y-2">
+                {showAuthUnlockOption && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthForm((prev) => !prev)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">Unlock protected chat</div>
+                        <div className="text-xs text-slate-500">Authenticate once to use server-protected chat access</div>
+                      </div>
+                    </button>
+
+                    {showAuthForm && (
+                      <form onSubmit={handleUnlockProtectedChat} className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Username
+                          <input
+                            type="text"
+                            value={authUsername}
+                            onChange={(e) => setAuthUsername(e.target.value)}
+                            autoComplete="username"
+                            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Password
+                          <input
+                            type="password"
+                            value={authPassword}
+                            onChange={(e) => setAuthPassword(e.target.value)}
+                            autoComplete="current-password"
+                            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                          />
+                        </label>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-500">Session stored as HttpOnly cookie.</span>
+                          <button
+                            type="submit"
+                            disabled={!authUsername.trim() || !authPassword || isAuthenticating}
+                            className="rounded-lg border border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:border-primary-500 hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isAuthenticating ? 'Unlocking...' : 'Unlock'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </>
+                )}
+
                 <button
                   onClick={() => startSelfGuidedDemo()}
-                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
                 >
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                      shouldHighlightTryYourself ? 'bg-primary-600 text-white' : 'bg-primary-500 text-white'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 1 1 6.75 0c0 1.295-.706 2.42-1.754 3.009-.644.363-1.057 1.023-1.057 1.762v.104m0 3h.008M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-                    </svg>
-                  </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">Start a new experiment</div>
                     <div className="text-xs text-slate-500">Begin a fresh experiment setup from scratch</div>
@@ -786,17 +884,8 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
                 </button>
                 <button
                   onClick={() => applyDemoSetupPreset(SIMPLE_AB_DEMO_PRESET)}
-                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
                 >
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                      shouldHighlightTryYourself ? 'bg-primary-100 text-primary-700' : 'bg-primary-500 text-white'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m-7.5-7.5v15" />
-                    </svg>
-                  </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">Simple Demo: Red vs Blue Button</div>
                     <div className="text-xs text-slate-500">A/B test preset with full metrics and export-ready setup</div>
@@ -804,13 +893,8 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
                 </button>
                 <button
                   onClick={() => applyDemoSetupPreset(COMPLEX_CLUSTER_DEMO_PRESET)}
-                  className="w-full flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors transition-transform hover:border-primary-200 hover:bg-primary-50 active:translate-y-px"
                 >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 text-primary-700 shrink-0">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 7v10m6-10v10m6-10v10M4 17h16" />
-                    </svg>
-                  </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">Complex Demo: Cluster Messaging Test</div>
                     <div className="text-xs text-slate-500">Network-effect cluster preset with advanced guardrails</div>
