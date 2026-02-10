@@ -7,6 +7,7 @@ import { ExperimentType } from '@/types'
 export function Step5VarianceReduction() {
   const { varianceReduction, updateVarianceReduction, experimentType } = useExperiment()
   const isMAB = experimentType === ExperimentType.MAB
+  const stratificationValue = varianceReduction.stratificationVariables.join(', ')
 
   return (
     <div className="space-y-6">
@@ -121,6 +122,15 @@ export function Step5VarianceReduction() {
             <div className="ml-6">
               <Input
                 placeholder="e.g., platform, country, user_segment"
+                value={stratificationValue}
+                onChange={(e) =>
+                  updateVarianceReduction({
+                    stratificationVariables: e.target.value
+                      .split(',')
+                      .map((name) => name.trim())
+                      .filter(Boolean),
+                  })
+                }
                 helperText="Comma-separated list of variables to stratify on"
               />
             </div>

@@ -2,10 +2,27 @@ import { useExperiment } from '@/hooks/useExperiment'
 import { Card } from '@/components/common/Card'
 import { Select } from '@/components/common/Select'
 import { Input } from '@/components/common/Input'
-import { MultipleTestingCorrection, ExperimentType } from '@/types'
+import { MultipleTestingCorrection, ExperimentType, StoppingRuleType } from '@/types'
+
+function parseTextList(value: string): string[] {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
 export function Step7Monitoring() {
   const { monitoring, updateMonitoring, experimentType } = useExperiment()
+  const getStoppingRule = (type: StoppingRuleType): string =>
+    monitoring.stoppingRules.find((rule) => rule.type === type)?.description ?? ''
+  const setStoppingRule = (type: StoppingRuleType, description: string) => {
+    const trimmed = description.trim()
+    const nextRules = monitoring.stoppingRules.filter((rule) => rule.type !== type)
+    if (trimmed) {
+      nextRules.push({ type, description: trimmed })
+    }
+    updateMonitoring({ stoppingRules: nextRules })
+  }
 
   return (
     <div className="space-y-6">
@@ -92,6 +109,8 @@ export function Step7Monitoring() {
             </p>
             <Input
               placeholder="e.g., p-value < 0.001 and effect size > 2x MDE"
+              value={getStoppingRule(StoppingRuleType.SUCCESS)}
+              onChange={(e) => setStoppingRule(StoppingRuleType.SUCCESS, e.target.value)}
               helperText="Criteria for declaring early success"
             />
           </div>
@@ -103,6 +122,8 @@ export function Step7Monitoring() {
             </p>
             <Input
               placeholder="e.g., Conditional power < 20% at 75% of planned duration"
+              value={getStoppingRule(StoppingRuleType.FUTILITY)}
+              onChange={(e) => setStoppingRule(StoppingRuleType.FUTILITY, e.target.value)}
               helperText="Criteria for stopping due to futility"
             />
           </div>
@@ -114,6 +135,8 @@ export function Step7Monitoring() {
             </p>
             <Input
               placeholder="e.g., Any guardrail metric degrades by > 5%"
+              value={getStoppingRule(StoppingRuleType.HARM)}
+              onChange={(e) => setStoppingRule(StoppingRuleType.HARM, e.target.value)}
               helperText="Criteria for stopping due to harm"
             />
           </div>
@@ -156,6 +179,15 @@ export function Step7Monitoring() {
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Primary metric improves by ≥ MDE, no guardrail degradation"
+              value={monitoring.decisionCriteria.ship.join('\n')}
+              onChange={(e) =>
+                updateMonitoring({
+                  decisionCriteria: {
+                    ...monitoring.decisionCriteria,
+                    ship: parseTextList(e.target.value),
+                  },
+                })
+              }
             />
           </div>
 
@@ -167,6 +199,15 @@ export function Step7Monitoring() {
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Positive trend but not significant, mixed results on metrics"
+              value={monitoring.decisionCriteria.iterate.join('\n')}
+              onChange={(e) =>
+                updateMonitoring({
+                  decisionCriteria: {
+                    ...monitoring.decisionCriteria,
+                    iterate: parseTextList(e.target.value),
+                  },
+                })
+              }
             />
           </div>
 
@@ -178,6 +219,15 @@ export function Step7Monitoring() {
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               rows={2}
               placeholder="e.g., Significant negative impact on primary or guardrail metrics"
+              value={monitoring.decisionCriteria.kill.join('\n')}
+              onChange={(e) =>
+                updateMonitoring({
+                  decisionCriteria: {
+                    ...monitoring.decisionCriteria,
+                    kill: parseTextList(e.target.value),
+                  },
+                })
+              }
             />
           </div>
         </div>

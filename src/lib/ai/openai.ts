@@ -1,6 +1,15 @@
 import { buildSystemPrompt, AI_TOOL_FUNCTIONS, type ExperimentState } from './systemPrompt'
 import type { ChatMessage } from '@/store/aiChatStore'
-import type { ExperimentType, MetricCategory, MetricType, MetricDirection } from '@/types'
+import type {
+  ExperimentType,
+  MetricCategory,
+  MetricType,
+  MetricDirection,
+  RandomizationUnit,
+  BucketingStrategy,
+  RiskLevel,
+  MultipleTestingCorrection,
+} from '@/types'
 
 const CHAT_MODEL = 'gpt-4o-mini'
 const CHAT_TEMPERATURE = 0.85
@@ -42,9 +51,63 @@ export interface SetStatisticalParamsArgs {
   dailyTraffic?: number
 }
 
+export interface SetRandomizationArgs {
+  unit?: RandomizationUnit
+  bucketingStrategy?: BucketingStrategy
+  consistentAssignment?: boolean
+  stratificationVariables?: Array<{ name: string; values?: string[] }>
+  sampleRatio?: number[]
+  rationale?: string
+}
+
+export interface SetVarianceReductionArgs {
+  useCUPED?: boolean
+  cupedCovariate?: string
+  cupedExpectedReduction?: number
+  useStratification?: boolean
+  stratificationVariables?: string[]
+  useMatchedPairs?: boolean
+  useBlocking?: boolean
+}
+
+export interface SetRiskAssessmentArgs {
+  riskLevel?: RiskLevel
+  blastRadius?: number
+  potentialNegativeImpacts?: string[]
+  mitigationStrategies?: string[]
+  rollbackTriggers?: string[]
+  circuitBreakers?: string[]
+  preLaunchChecklistCompletedIds?: string[]
+}
+
+export interface SetMonitoringArgs {
+  refreshFrequency?: number
+  srmThreshold?: number
+  multipleTestingCorrection?: MultipleTestingCorrection
+  stoppingRules?: Array<{
+    type: 'SUCCESS' | 'FUTILITY' | 'HARM'
+    description: string
+    threshold?: number
+    metricId?: string
+  }>
+  decisionCriteria?: {
+    ship?: string[]
+    iterate?: string[]
+    kill?: string[]
+  }
+}
+
 export interface FunctionCall {
   name: string
-  args: SetExperimentTypeArgs | SetExperimentDetailsArgs | SetMetricsArgs | SetStatisticalParamsArgs
+  args:
+    | SetExperimentTypeArgs
+    | SetExperimentDetailsArgs
+    | SetMetricsArgs
+    | SetStatisticalParamsArgs
+    | SetRandomizationArgs
+    | SetVarianceReductionArgs
+    | SetRiskAssessmentArgs
+    | SetMonitoringArgs
 }
 
 export interface AIResponse {

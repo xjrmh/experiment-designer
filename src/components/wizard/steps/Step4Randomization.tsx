@@ -12,6 +12,7 @@ export function Step4Randomization() {
   const template = experimentType ? EXPERIMENT_TEMPLATES[experimentType] : null
   const isUnitLocked = experimentType != null && LOCKED_UNIT_TYPES.includes(experimentType)
   const isConsistentLocked = experimentType === ExperimentType.SWITCHBACK || experimentType === ExperimentType.MAB
+  const stratificationValue = randomization.stratificationVariables.map((v) => v.name).join(', ')
 
   return (
     <div className="space-y-6">
@@ -116,6 +117,16 @@ export function Step4Randomization() {
         <Input
           label="Stratification Variables"
           placeholder="e.g., platform, geography, user_segment (comma-separated)"
+          value={stratificationValue}
+          onChange={(e) =>
+            updateRandomization({
+              stratificationVariables: e.target.value
+                .split(',')
+                .map((name) => name.trim())
+                .filter(Boolean)
+                .map((name) => ({ name, values: [] })),
+            })
+          }
           helperText="Leave empty if not using stratification"
         />
       </Card>

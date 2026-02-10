@@ -17,9 +17,28 @@ import {
   type SetExperimentDetailsArgs,
   type SetMetricsArgs,
   type SetStatisticalParamsArgs,
+  type SetRandomizationArgs,
+  type SetVarianceReductionArgs,
+  type SetRiskAssessmentArgs,
+  type SetMonitoringArgs,
 } from '@/lib/ai/openai'
 import { AIChatMessage } from './AIChatMessage'
-import { ExperimentType, MetricCategory, MetricType, MetricDirection, type TypeSpecificParams } from '@/types'
+import {
+  ExperimentType,
+  MetricCategory,
+  MetricType,
+  MetricDirection,
+  RandomizationUnit,
+  BucketingStrategy,
+  RiskLevel,
+  MultipleTestingCorrection,
+  StoppingRuleType,
+  type TypeSpecificParams,
+  type RandomizationConfig,
+  type VarianceReductionConfig,
+  type RiskAssessment,
+  type MonitoringConfig,
+} from '@/types'
 
 const GREETING_MESSAGE =
   "Hi! I'm your experiment design assistant. Tell me — what change or feature are you trying to test? I'll help you pick the right experiment type and configure everything."
@@ -34,6 +53,10 @@ const STEP_MAP: Record<string, number> = {
   set_experiment_type: 1,
   set_metrics: 2,
   set_statistical_params: 3,
+  set_randomization: 4,
+  set_variance_reduction: 5,
+  set_risk_assessment: 6,
+  set_monitoring: 7,
   set_experiment_details: 8,
 }
 
@@ -55,6 +78,11 @@ interface DemoSetupPreset {
   dailyTraffic: number
   mde: number
   typeSpecificParams?: Partial<TypeSpecificParams>
+  randomization?: Partial<RandomizationConfig>
+  varianceReduction?: Partial<VarianceReductionConfig>
+  riskAssessment?: Partial<RiskAssessment>
+  riskChecklistCompletedIds?: string[]
+  monitoring?: Partial<MonitoringConfig>
   completionMessage: string
 }
 
@@ -97,8 +125,60 @@ const SIMPLE_AB_DEMO_PRESET: DemoSetupPreset = {
   ],
   dailyTraffic: 25000,
   mde: 5,
+  randomization: {
+    unit: RandomizationUnit.USER_ID,
+    bucketingStrategy: BucketingStrategy.HASH_BASED,
+    consistentAssignment: true,
+    sampleRatio: [50, 50],
+    stratificationVariables: [
+      { name: 'platform', values: [] },
+      { name: 'geo_tier', values: [] },
+    ],
+  },
+  varianceReduction: {
+    useCUPED: true,
+    cupedCovariate: 'pre_signup_intent_score',
+    cupedExpectedReduction: 35,
+    useStratification: true,
+    stratificationVariables: ['platform'],
+    useMatchedPairs: false,
+    useBlocking: false,
+  },
+  riskAssessment: {
+    riskLevel: RiskLevel.MEDIUM,
+    blastRadius: 35,
+    potentialNegativeImpacts: ['Temporary conversion dip for a subset of traffic'],
+    mitigationStrategies: ['Start at 10% rollout and expand gradually if guardrails hold'],
+    rollbackTriggers: ['Signup conversion drops > 8% for 2 consecutive checks'],
+    circuitBreakers: ['Auto-disable treatment when error rate exceeds 2%'],
+  },
+  riskChecklistCompletedIds: ['1', '2', '3'],
+  monitoring: {
+    refreshFrequency: 30,
+    srmThreshold: 0.001,
+    multipleTestingCorrection: MultipleTestingCorrection.BONFERRONI,
+    stoppingRules: [
+      {
+        type: StoppingRuleType.SUCCESS,
+        description: 'p-value < 0.001 and effect size > 2x MDE',
+      },
+      {
+        type: StoppingRuleType.FUTILITY,
+        description: 'Conditional power < 20% at 75% of planned duration',
+      },
+      {
+        type: StoppingRuleType.HARM,
+        description: 'Any guardrail metric degrades by > 5%',
+      },
+    ],
+    decisionCriteria: {
+      ship: ['Primary metric improves by >= 5% with no guardrail regressions'],
+      iterate: ['Positive trend but below significance threshold at planned horizon'],
+      kill: ['Primary metric declines or any critical guardrail degrades significantly'],
+    },
+  },
   completionMessage:
-    'Demo loaded: simple A/B test (Red vs Blue CTA) with full metrics and defaults. I moved you to Step 8 and scrolled to Export Documentation so you can export immediately.\n\nNext step: Export the preset, or ask me to adjust any metric, traffic, or MDE.',
+    'Demo loaded: simple A/B test (Red vs Blue CTA) and I walked through all steps 1-8, including randomization, variance reduction, risk, and monitoring.\n\nNext step: Review Step 8 and export, or ask me to adjust any step.',
 }
 
 const COMPLEX_CLUSTER_DEMO_PRESET: DemoSetupPreset = {
@@ -152,26 +232,63 @@ const COMPLEX_CLUSTER_DEMO_PRESET: DemoSetupPreset = {
     icc: 0.18,
     clusterSize: 220,
   },
+  randomization: {
+    unit: RandomizationUnit.CLUSTER,
+    bucketingStrategy: BucketingStrategy.HASH_BASED,
+    consistentAssignment: true,
+    sampleRatio: [50, 50],
+    stratificationVariables: [
+      { name: 'region', values: [] },
+      { name: 'cluster_size_band', values: [] },
+    ],
+  },
+  varianceReduction: {
+    useCUPED: true,
+    cupedCovariate: 'pre_experiment_messages_per_user',
+    cupedExpectedReduction: 28,
+    useStratification: true,
+    stratificationVariables: ['region', 'cluster_size_band'],
+    useMatchedPairs: true,
+    useBlocking: true,
+  },
+  riskAssessment: {
+    riskLevel: RiskLevel.HIGH,
+    blastRadius: 60,
+    potentialNegativeImpacts: ['Spam and abuse volume can increase with messaging'],
+    mitigationStrategies: ['Gate rollout by cluster quality tiers with manual approvals'],
+    rollbackTriggers: ['Spam report rate > 20% above baseline for any treated cohort'],
+    circuitBreakers: ['Auto-revert treatment for clusters with severe trust-safety alerts'],
+  },
+  riskChecklistCompletedIds: ['1', '2', '3', '4'],
+  monitoring: {
+    refreshFrequency: 15,
+    srmThreshold: 0.001,
+    multipleTestingCorrection: MultipleTestingCorrection.HOLM,
+    stoppingRules: [
+      {
+        type: StoppingRuleType.SUCCESS,
+        description: 'Primary metric increases >= 8% with stable crash and spam guardrails',
+      },
+      {
+        type: StoppingRuleType.FUTILITY,
+        description: 'No meaningful uplift and conditional power < 25% at 70% of planned duration',
+      },
+      {
+        type: StoppingRuleType.HARM,
+        description: 'Crash rate or spam report rate exceeds rollback trigger thresholds',
+      },
+    ],
+    decisionCriteria: {
+      ship: ['Primary metric increases >= 8% and crash/spam guardrails remain stable'],
+      iterate: ['Primary metric improves but one guardrail nears alert threshold'],
+      kill: ['Crash rate or spam reports exceed rollback trigger thresholds'],
+    },
+  },
   completionMessage:
-    'Demo loaded: complex cluster experiment for messaging chat with strong network effects and full guardrails. I moved you to Step 8 and scrolled to Export Documentation for immediate export.\n\nNext step: Export this preset, or ask me to tune ICC, traffic, or success metrics.',
+    'Demo loaded: complex cluster experiment for messaging chat, including visible walkthrough of Steps 4-7 before Step 8 export.\n\nNext step: Review Step 8 and export, or ask me to tune ICC, traffic, or monitoring thresholds.',
 }
 
 type ExperimentSnapshot = ReturnType<typeof useExperimentStore.getState>
-
-function isExperimentSetupComplete(state: ExperimentSnapshot): boolean {
-  const hasPrimaryMetric = state.metrics.some((m) => m.category === MetricCategory.PRIMARY)
-  const hasGuardrailMetric = state.metrics.some((m) => m.category === MetricCategory.GUARDRAIL)
-
-  return (
-    !!state.experimentType &&
-    hasPrimaryMetric &&
-    hasGuardrailMetric &&
-    state.dailyTraffic > 0 &&
-    state.statisticalParams.mde > 0 &&
-    !!state.name &&
-    !!state.hypothesis
-  )
-}
 
 function buildNextActionGuidance(state: ExperimentSnapshot): string {
   if (!state.experimentType) {
@@ -196,11 +313,31 @@ function buildNextActionGuidance(state: ExperimentSnapshot): string {
     return 'Next step: In Step 3, set your MDE target. A practical starting point is usually 5-10% relative.'
   }
 
+  if (state.currentStep <= 3) {
+    return 'Next step: In Step 4, review randomization unit, bucketing, and assignment consistency.'
+  }
+
+  if (state.currentStep === 4) {
+    return 'Next step: In Step 5, confirm whether to enable CUPED, stratification, matched pairs, or blocking.'
+  }
+
+  if (state.currentStep === 5) {
+    return 'Next step: In Step 6, set risk level and blast radius, then confirm rollback and circuit breaker plans.'
+  }
+
+  if (state.currentStep === 6) {
+    return 'Next step: In Step 7, define monitoring cadence, SRM threshold, and multiple testing correction.'
+  }
+
   if (!state.name || !state.hypothesis) {
     return 'Next step: In Step 8, review the AI-generated name and hypothesis and tweak wording if needed.'
   }
 
-  return 'Next step: Review Steps 4-7 defaults, then finalize details and export in Step 8.'
+  if (state.currentStep === 7) {
+    return 'Next step: In Step 8, finalize experiment details and export documentation.'
+  }
+
+  return 'Next step: In Step 8, review final details and export your experiment plan.'
 }
 
 function ensureNextActionLine(message: string, nextAction: string): string {
@@ -443,6 +580,170 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
             }
             break
           }
+          case 'set_randomization': {
+            const args = call.args as SetRandomizationArgs
+            const updates: Partial<RandomizationConfig> = {}
+
+            if (args.unit) {
+              updates.unit = args.unit as RandomizationUnit
+              changedFields.add('randomization.unit')
+            }
+            if (args.bucketingStrategy) {
+              updates.bucketingStrategy = args.bucketingStrategy as BucketingStrategy
+              changedFields.add('randomization.bucketingStrategy')
+            }
+            if (typeof args.consistentAssignment === 'boolean') {
+              updates.consistentAssignment = args.consistentAssignment
+              changedFields.add('randomization.consistentAssignment')
+            }
+            if (Array.isArray(args.sampleRatio) && args.sampleRatio.length >= 2) {
+              updates.sampleRatio = args.sampleRatio
+              changedFields.add('randomization.sampleRatio')
+            }
+            if (Array.isArray(args.stratificationVariables)) {
+              updates.stratificationVariables = args.stratificationVariables.map((v) => ({
+                name: v.name,
+                values: Array.isArray(v.values) ? v.values : [],
+              }))
+              changedFields.add('randomization.stratificationVariables')
+            }
+            if (typeof args.rationale === 'string') {
+              updates.rationale = args.rationale
+              changedFields.add('randomization.rationale')
+            }
+
+            if (Object.keys(updates).length > 0) {
+              experimentStore.updateRandomization(updates)
+              actions.push(`Step ${step}: randomization updated`)
+            }
+            break
+          }
+          case 'set_variance_reduction': {
+            const args = call.args as SetVarianceReductionArgs
+            const updates: Partial<VarianceReductionConfig> = {}
+
+            if (typeof args.useCUPED === 'boolean') {
+              updates.useCUPED = args.useCUPED
+              changedFields.add('varianceReduction.useCUPED')
+            }
+            if (typeof args.cupedCovariate === 'string') {
+              updates.cupedCovariate = args.cupedCovariate
+              changedFields.add('varianceReduction.cupedCovariate')
+            }
+            if (typeof args.cupedExpectedReduction === 'number') {
+              updates.cupedExpectedReduction = args.cupedExpectedReduction
+              changedFields.add('varianceReduction.cupedExpectedReduction')
+            }
+            if (typeof args.useStratification === 'boolean') {
+              updates.useStratification = args.useStratification
+              changedFields.add('varianceReduction.useStratification')
+            }
+            if (Array.isArray(args.stratificationVariables)) {
+              updates.stratificationVariables = args.stratificationVariables
+              changedFields.add('varianceReduction.stratificationVariables')
+            }
+            if (typeof args.useMatchedPairs === 'boolean') {
+              updates.useMatchedPairs = args.useMatchedPairs
+              changedFields.add('varianceReduction.useMatchedPairs')
+            }
+            if (typeof args.useBlocking === 'boolean') {
+              updates.useBlocking = args.useBlocking
+              changedFields.add('varianceReduction.useBlocking')
+            }
+
+            if (Object.keys(updates).length > 0) {
+              experimentStore.updateVarianceReduction(updates)
+              actions.push(`Step ${step}: variance reduction updated`)
+            }
+            break
+          }
+          case 'set_risk_assessment': {
+            const args = call.args as SetRiskAssessmentArgs
+            const updates: Partial<RiskAssessment> = {}
+
+            if (args.riskLevel) {
+              updates.riskLevel = args.riskLevel as RiskLevel
+              changedFields.add('riskAssessment.riskLevel')
+            }
+            if (typeof args.blastRadius === 'number') {
+              updates.blastRadius = args.blastRadius
+              changedFields.add('riskAssessment.blastRadius')
+            }
+            if (Array.isArray(args.potentialNegativeImpacts)) {
+              updates.potentialNegativeImpacts = args.potentialNegativeImpacts
+              changedFields.add('riskAssessment.potentialNegativeImpacts')
+            }
+            if (Array.isArray(args.mitigationStrategies)) {
+              updates.mitigationStrategies = args.mitigationStrategies
+              changedFields.add('riskAssessment.mitigationStrategies')
+            }
+            if (Array.isArray(args.rollbackTriggers)) {
+              updates.rollbackTriggers = args.rollbackTriggers
+              changedFields.add('riskAssessment.rollbackTriggers')
+            }
+            if (Array.isArray(args.circuitBreakers)) {
+              updates.circuitBreakers = args.circuitBreakers
+              changedFields.add('riskAssessment.circuitBreakers')
+            }
+            if (Array.isArray(args.preLaunchChecklistCompletedIds)) {
+              const completedIds = new Set(args.preLaunchChecklistCompletedIds)
+              updates.preLaunchChecklist = useExperimentStore
+                .getState()
+                .riskAssessment.preLaunchChecklist.map((item) => ({
+                  ...item,
+                  completed: completedIds.has(item.id),
+                }))
+              changedFields.add('riskAssessment.preLaunchChecklist')
+            }
+
+            if (Object.keys(updates).length > 0) {
+              experimentStore.updateRiskAssessment(updates)
+              actions.push(`Step ${step}: risk assessment updated`)
+            }
+            break
+          }
+          case 'set_monitoring': {
+            const args = call.args as SetMonitoringArgs
+            const updates: Partial<MonitoringConfig> = {}
+
+            if (typeof args.refreshFrequency === 'number') {
+              updates.refreshFrequency = args.refreshFrequency
+              changedFields.add('monitoring.refreshFrequency')
+            }
+            if (typeof args.srmThreshold === 'number') {
+              updates.srmThreshold = args.srmThreshold
+              changedFields.add('monitoring.srmThreshold')
+            }
+            if (args.multipleTestingCorrection) {
+              updates.multipleTestingCorrection =
+                args.multipleTestingCorrection as MultipleTestingCorrection
+              changedFields.add('monitoring.multipleTestingCorrection')
+            }
+            if (Array.isArray(args.stoppingRules)) {
+              updates.stoppingRules = args.stoppingRules.map((rule) => ({
+                type: rule.type as StoppingRuleType,
+                description: rule.description,
+                threshold: rule.threshold,
+                metricId: rule.metricId,
+              }))
+              changedFields.add('monitoring.stoppingRules')
+            }
+            if (args.decisionCriteria) {
+              const currentDecisionCriteria = useExperimentStore.getState().monitoring.decisionCriteria
+              updates.decisionCriteria = {
+                ship: args.decisionCriteria.ship ?? currentDecisionCriteria.ship,
+                iterate: args.decisionCriteria.iterate ?? currentDecisionCriteria.iterate,
+                kill: args.decisionCriteria.kill ?? currentDecisionCriteria.kill,
+              }
+              changedFields.add('monitoring.decisionCriteria')
+            }
+
+            if (Object.keys(updates).length > 0) {
+              experimentStore.updateMonitoring(updates)
+              actions.push(`Step ${step}: monitoring updated`)
+            }
+            break
+          }
         }
       }
 
@@ -455,14 +756,19 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         })
       }
 
-      const latestState = useExperimentStore.getState()
-      const shouldJumpToSummary = isExperimentSetupComplete(latestState)
+      if (orderedSteps.length > 0) {
+        const latestState = useExperimentStore.getState()
+        const hasCorePrereqs =
+          !!latestState.experimentType &&
+          latestState.metrics.some((m) => m.category === MetricCategory.PRIMARY) &&
+          latestState.metrics.some((m) => m.category === MetricCategory.GUARDRAIL) &&
+          latestState.dailyTraffic > 0 &&
+          latestState.statisticalParams.mde > 0
+        const reviewStep = hasCorePrereqs ? orderedSteps.find((s) => s >= 4 && s <= 7) : undefined
+        const targetStep = reviewStep ?? orderedSteps[0]
 
-      if (shouldJumpToSummary) {
-        experimentStore.setCurrentStep(8)
-      } else if (orderedSteps.length > 0) {
-        // Jump to the earliest updated step so users see the changed inputs in sequence.
-        experimentStore.setCurrentStep(orderedSteps[0])
+        // Prefer Step 4-7 when core setup is done, otherwise show the first updated step.
+        experimentStore.setCurrentStep(targetStep)
         requestAnimationFrame(() => {
           window.scrollTo({ top: 0, behavior: 'smooth' })
         })
@@ -492,7 +798,8 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
 
         addMessage({
           role: 'assistant',
-          content: `Great choice. I’ll run this demo setup step by step so you can review each stage.\n\nNext step: I’m starting with Step 1 (experiment type).`,
+          content:
+            'Great choice. I’ll run this demo through all eight steps so you can review each stage, including Steps 4-7.\n\nNext step: I’m starting with Step 1 (experiment type).',
         })
 
         await wait(DEMO_STAGE_DELAY_MS)
@@ -555,8 +862,94 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
         experimentStore.setCurrentStep(3)
         addMessage({
           role: 'assistant',
-          content: `Step 3 complete: set daily traffic to ${preset.dailyTraffic.toLocaleString()} and MDE to ${preset.mde}%.\n\nNext step: I’ll finish details in Step 8.`,
+          content: `Step 3 complete: set daily traffic to ${preset.dailyTraffic.toLocaleString()} and MDE to ${preset.mde}%.\n\nNext step: I’ll configure Step 4 randomization settings.`,
           configuredAction: `Configured: Step 3: MDE → ${preset.mde}% · daily traffic → ${preset.dailyTraffic.toLocaleString()}`,
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        if (preset.randomization) {
+          experimentStore.updateRandomization(preset.randomization)
+        }
+        experimentStore.markAIUpdates({
+          fields: [
+            'randomization.unit',
+            'randomization.bucketingStrategy',
+            'randomization.consistentAssignment',
+          ],
+          steps: [4],
+        })
+        experimentStore.setCurrentStep(4)
+        addMessage({
+          role: 'assistant',
+          content:
+            'Step 4 complete: configured randomization unit, bucketing strategy, and assignment behavior.\n\nNext step: I’ll apply Step 5 variance reduction settings.',
+          configuredAction: 'Configured: Step 4: randomization updated',
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        if (preset.varianceReduction) {
+          experimentStore.updateVarianceReduction(preset.varianceReduction)
+        }
+        experimentStore.markAIUpdates({
+          fields: ['varianceReduction'],
+          steps: [5],
+        })
+        experimentStore.setCurrentStep(5)
+        addMessage({
+          role: 'assistant',
+          content:
+            'Step 5 complete: applied variance reduction choices (CUPED/stratification/other techniques as defined).\n\nNext step: I’ll configure Step 6 risk assessment.',
+          configuredAction: 'Configured: Step 5: variance reduction updated',
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        if (preset.riskAssessment) {
+          experimentStore.updateRiskAssessment(preset.riskAssessment)
+        }
+        if (preset.riskChecklistCompletedIds?.length) {
+          const completedIds = new Set(preset.riskChecklistCompletedIds)
+          const checklist = useExperimentStore
+            .getState()
+            .riskAssessment.preLaunchChecklist.map((item) => ({
+              ...item,
+              completed: completedIds.has(item.id),
+            }))
+          experimentStore.updateRiskAssessment({ preLaunchChecklist: checklist })
+        }
+        experimentStore.markAIUpdates({
+          fields: ['riskAssessment'],
+          steps: [6],
+        })
+        experimentStore.setCurrentStep(6)
+        addMessage({
+          role: 'assistant',
+          content:
+            'Step 6 complete: set risk level, blast radius, and mitigation/rollback controls.\n\nNext step: I’ll configure Step 7 monitoring and stopping defaults.',
+          configuredAction: 'Configured: Step 6: risk assessment updated',
+        })
+
+        await wait(DEMO_STAGE_DELAY_MS)
+        if (isStaleRun()) return
+
+        if (preset.monitoring) {
+          experimentStore.updateMonitoring(preset.monitoring)
+        }
+        experimentStore.markAIUpdates({
+          fields: ['monitoring'],
+          steps: [7],
+        })
+        experimentStore.setCurrentStep(7)
+        addMessage({
+          role: 'assistant',
+          content:
+            'Step 7 complete: monitoring cadence, SRM threshold, testing correction, and decision criteria are set.\n\nNext step: I’ll finalize Step 8 details for export.',
+          configuredAction: 'Configured: Step 7: monitoring updated',
         })
 
         await wait(DEMO_STAGE_DELAY_MS)
@@ -652,6 +1045,36 @@ export function AIChatDialog({ mode = 'popup' }: AIChatDialogProps) {
           mde: experimentStore.statisticalParams.mde,
           hasSampleSizeResult: !!experimentStore.sampleSizeResult,
           currentStep: experimentStore.currentStep,
+          randomization: {
+            unit: experimentStore.randomization.unit,
+            bucketingStrategy: experimentStore.randomization.bucketingStrategy,
+            consistentAssignment: experimentStore.randomization.consistentAssignment,
+            sampleRatio: experimentStore.randomization.sampleRatio,
+            stratificationVariables: experimentStore.randomization.stratificationVariables.map((v) => ({
+              name: v.name,
+              values: v.values,
+            })),
+          },
+          varianceReduction: {
+            useCUPED: experimentStore.varianceReduction.useCUPED,
+            cupedCovariate: experimentStore.varianceReduction.cupedCovariate,
+            cupedExpectedReduction: experimentStore.varianceReduction.cupedExpectedReduction,
+            useStratification: experimentStore.varianceReduction.useStratification,
+            useMatchedPairs: experimentStore.varianceReduction.useMatchedPairs,
+            useBlocking: experimentStore.varianceReduction.useBlocking,
+          },
+          riskAssessment: {
+            riskLevel: experimentStore.riskAssessment.riskLevel,
+            blastRadius: experimentStore.riskAssessment.blastRadius,
+            preLaunchChecklistCompleted: experimentStore.riskAssessment.preLaunchChecklist.filter((i) => i.completed)
+              .length,
+            preLaunchChecklistTotal: experimentStore.riskAssessment.preLaunchChecklist.length,
+          },
+          monitoring: {
+            refreshFrequency: experimentStore.monitoring.refreshFrequency,
+            srmThreshold: experimentStore.monitoring.srmThreshold,
+            multipleTestingCorrection: experimentStore.monitoring.multipleTestingCorrection,
+          },
         })
 
         let configAction: string | undefined

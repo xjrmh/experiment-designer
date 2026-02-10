@@ -4,6 +4,13 @@ import { Select } from '@/components/common/Select'
 import { Input } from '@/components/common/Input'
 import { RiskLevel } from '@/types'
 
+function parseTextList(value: string): string[] {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export function Step6RiskAssessment() {
   const { riskAssessment, updateRiskAssessment, toggleChecklistItem } = useExperiment()
 
@@ -74,12 +81,46 @@ export function Step6RiskAssessment() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Potential Negative Impacts
+              </label>
+              <textarea
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                rows={3}
+                placeholder="One item per line"
+                value={riskAssessment.potentialNegativeImpacts.join('\n')}
+                onChange={(e) =>
+                  updateRiskAssessment({ potentialNegativeImpacts: parseTextList(e.target.value) })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mitigation Strategies
+              </label>
+              <textarea
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                rows={3}
+                placeholder="One item per line"
+                value={riskAssessment.mitigationStrategies.join('\n')}
+                onChange={(e) =>
+                  updateRiskAssessment({ mitigationStrategies: parseTextList(e.target.value) })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Rollback Triggers
               </label>
               <textarea
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={3}
                 placeholder="e.g., Error rate > 5%, Revenue drop > 10%"
+                value={riskAssessment.rollbackTriggers.join('\n')}
+                onChange={(e) =>
+                  updateRiskAssessment({ rollbackTriggers: parseTextList(e.target.value) })
+                }
               />
             </div>
 
@@ -91,6 +132,10 @@ export function Step6RiskAssessment() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={3}
                 placeholder="e.g., Auto-rollback if critical errors detected"
+                value={riskAssessment.circuitBreakers.join('\n')}
+                onChange={(e) =>
+                  updateRiskAssessment({ circuitBreakers: parseTextList(e.target.value) })
+                }
               />
             </div>
           </div>

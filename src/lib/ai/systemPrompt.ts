@@ -9,6 +9,32 @@ export interface ExperimentState {
   mde: number
   hasSampleSizeResult: boolean
   currentStep: number
+  randomization: {
+    unit: string
+    bucketingStrategy: string
+    consistentAssignment: boolean
+    sampleRatio: number[]
+    stratificationVariables: Array<{ name: string; values: string[] }>
+  }
+  varianceReduction: {
+    useCUPED: boolean
+    cupedCovariate?: string
+    cupedExpectedReduction?: number
+    useStratification: boolean
+    useMatchedPairs: boolean
+    useBlocking: boolean
+  }
+  riskAssessment: {
+    riskLevel: string
+    blastRadius: number
+    preLaunchChecklistCompleted: number
+    preLaunchChecklistTotal: number
+  }
+  monitoring: {
+    refreshFrequency: number
+    srmThreshold: number
+    multipleTestingCorrection: string
+  }
 }
 
 export function buildSystemPrompt(currentState: ExperimentState): string {
@@ -17,50 +43,80 @@ export function buildSystemPrompt(currentState: ExperimentState): string {
   const missing: string[] = []
 
   if (currentState.experimentType) {
-    progress.push(`Experiment type: ${currentState.experimentType.replace(/_/g, ' ')}`)
+    progress.push(`Step 1 type: ${currentState.experimentType.replace(/_/g, ' ')}`)
   } else {
-    missing.push('Experiment type (Step 1)')
-  }
-
-  if (currentState.name) {
-    progress.push(`Name: "${currentState.name}"`)
-  } else {
-    missing.push('Experiment name')
-  }
-
-  if (currentState.hypothesis) {
-    progress.push(`Hypothesis: "${currentState.hypothesis}"`)
-  } else {
-    missing.push('Hypothesis')
+    missing.push('Step 1: experiment type')
   }
 
   if (currentState.metrics.length > 0) {
     const metricSummary = currentState.metrics
       .map((m) => `${m.name} (${m.category}, ${m.type}, baseline=${m.baseline})`)
       .join(', ')
-    progress.push(`Metrics (${currentState.metrics.length}): ${metricSummary}`)
+    progress.push(`Step 2 metrics (${currentState.metrics.length}): ${metricSummary}`)
     const hasPrimary = currentState.metrics.some((m) => m.category === 'PRIMARY')
     const hasGuardrail = currentState.metrics.some((m) => m.category === 'GUARDRAIL')
-    if (!hasPrimary) missing.push('A PRIMARY metric')
-    if (!hasGuardrail) missing.push('A GUARDRAIL metric (recommended)')
+    if (!hasPrimary) missing.push('Step 2: add a PRIMARY metric')
+    if (!hasGuardrail) missing.push('Step 2: add at least one GUARDRAIL metric')
   } else {
-    missing.push('Metrics (Step 2) — at least one PRIMARY metric is required')
+    missing.push('Step 2: metrics — at least one PRIMARY metric is required')
   }
 
   if (currentState.dailyTraffic > 0) {
-    progress.push(`Daily traffic: ${currentState.dailyTraffic.toLocaleString()}`)
+    progress.push(`Step 3 daily traffic: ${currentState.dailyTraffic.toLocaleString()}`)
   } else {
-    missing.push('Daily traffic estimate (Step 3)')
+    missing.push('Step 3: daily traffic estimate')
   }
 
   if (currentState.mde > 0) {
-    progress.push(`MDE: ${currentState.mde}%`)
+    progress.push(`Step 3 MDE: ${currentState.mde}%`)
   } else {
-    missing.push('Minimum Detectable Effect (Step 3)')
+    missing.push('Step 3: minimum detectable effect')
   }
 
   if (currentState.hasSampleSizeResult) {
-    progress.push('Sample size: calculated')
+    progress.push('Step 3 sample size: calculated')
+  }
+
+  const ratio = currentState.randomization.sampleRatio.join('/')
+  progress.push(
+    `Step 4 randomization: unit=${currentState.randomization.unit}, bucketing=${currentState.randomization.bucketingStrategy}, consistent=${currentState.randomization.consistentAssignment}, split=${ratio}`
+  )
+
+  const varianceFlags: string[] = []
+  if (currentState.varianceReduction.useCUPED) {
+    varianceFlags.push(`CUPED(${currentState.varianceReduction.cupedExpectedReduction ?? 0}%)`)
+  }
+  if (currentState.varianceReduction.useStratification) {
+    varianceFlags.push('post-stratification')
+  }
+  if (currentState.varianceReduction.useMatchedPairs) {
+    varianceFlags.push('matched-pairs')
+  }
+  if (currentState.varianceReduction.useBlocking) {
+    varianceFlags.push('blocking')
+  }
+  progress.push(
+    `Step 5 variance reduction: ${varianceFlags.length > 0 ? varianceFlags.join(', ') : 'none enabled'}`
+  )
+
+  progress.push(
+    `Step 6 risk: level=${currentState.riskAssessment.riskLevel}, blast radius=${currentState.riskAssessment.blastRadius}%, checklist=${currentState.riskAssessment.preLaunchChecklistCompleted}/${currentState.riskAssessment.preLaunchChecklistTotal}`
+  )
+
+  progress.push(
+    `Step 7 monitoring: refresh=${currentState.monitoring.refreshFrequency}m, SRM=${currentState.monitoring.srmThreshold}, correction=${currentState.monitoring.multipleTestingCorrection}`
+  )
+
+  if (currentState.name) {
+    progress.push(`Step 8 name: "${currentState.name}"`)
+  } else {
+    missing.push('Step 8: experiment name')
+  }
+
+  if (currentState.hypothesis) {
+    progress.push(`Step 8 hypothesis: "${currentState.hypothesis}"`)
+  } else {
+    missing.push('Step 8: hypothesis')
   }
 
   const progressSection =
@@ -71,13 +127,17 @@ export function buildSystemPrompt(currentState: ExperimentState): string {
   const missingSection =
     missing.length > 0
       ? `Still needed:\n${missing.map((m) => `  - ${m}`).join('\n')}`
-      : 'All essential fields are configured!'
+      : 'All fields are configured.'
 
-  const isComplete =
+  const hasCoreConfigured =
     !!currentState.experimentType &&
     currentState.metrics.length > 0 &&
     currentState.metrics.some((m) => m.category === 'PRIMARY') &&
-    !!currentState.name
+    currentState.metrics.some((m) => m.category === 'GUARDRAIL') &&
+    currentState.dailyTraffic > 0 &&
+    currentState.mde > 0
+
+  const isLikelyComplete = hasCoreConfigured && !!currentState.name && !!currentState.hypothesis && currentState.currentStep >= 8
 
   return `You are an AI experiment design assistant embedded in an Experiment Designer tool. Your ONLY purpose is to help users design statistically rigorous experiments.
 
@@ -92,88 +152,59 @@ ${progressSection}
 
 ${missingSection}
 
-The user is on step ${currentState.currentStep} of 8.${isComplete ? '\n\nThe experiment has all essential fields configured — help the user review or refine.' : ''}
+The user is on step ${currentState.currentStep} of 8.${isLikelyComplete ? '\n\nThe experiment looks complete — help the user finalize export or refine details.' : ''}
 
 ## PROACTIVE GUIDANCE — CRITICAL
 You MUST actively drive the conversation toward completing the experiment setup. After EVERY response:
 1. Briefly acknowledge what the user said or what you just configured.
-2. **Immediately suggest the next missing piece** with a specific, easy-to-answer question.
-3. If possible, **infer and pre-fill values** from context instead of asking — then ask the user to confirm.
+2. Immediately suggest the next wizard step with one concrete action or question.
+3. Infer and pre-fill values from context whenever possible, then ask for confirmation.
 
 ## RESPONSE FORMAT — REQUIRED
 - You MUST end every assistant message with one line that starts with: **"Next step:"**
-- The "Next step:" line must mention the wizard step number when possible and include one concrete action or question.
-- Even when everything is configured, still include "Next step:" telling the user to review/export and optionally refine.
+- The "Next step:" line must mention the wizard step number when possible.
+- Do not end with a generic statement. Always include one concrete user action.
+
+## STEP ORDER — DO NOT SKIP
+Move through steps in order from 1 to 8. Do NOT skip Steps 4-7.
+- Even when defaults are sensible, still walk through each step, summarize the recommended setting, and confirm.
+- Only skip a step if the user explicitly asks to skip it.
+- Do not jump to Step 8 details before discussing Steps 4, 5, 6, and 7.
 
 ### Priority order for what to configure next:
-1. Experiment type (if missing) — infer from context when possible
-2. Primary metric — suggest one based on the experiment type and goal
-3. Guardrail metric — always suggest at least one (e.g., bounce rate, error rate, load time)
-4. Daily traffic & MDE — ask for traffic, suggest a reasonable MDE based on baseline
-5. Experiment name & hypothesis — generate from the user's description, don't ask them to write it
-6. Review — when all essentials are done, summarise and tell them to check the wizard
-
-### Inference rules — be smart, don't over-ask:
-- If the user says "test a new checkout flow" → **immediately** set type to AB_TEST, generate a name like "Checkout Flow Redesign", generate a hypothesis, AND suggest conversion rate as the primary metric. Do all of this in ONE response.
-- If the user mentions a percentage like "our conversion rate is 3%" → set a metric with baseline 0.03, suggest an MDE of 5-10% relative, and ask about traffic.
-- If the user mentions "50k daily visitors" → set daily traffic to 50000 and suggest MDE based on their metric baseline.
-- If you can infer the metric type from the name (e.g., "conversion rate" → BINARY, "revenue" → CONTINUOUS, "page views" → COUNT), just set it — don't ask.
-- If the user gives you enough info for multiple steps, **call multiple functions in one response**.
-
-### When essentials are complete:
-Give a brief congratulatory summary like:
-"Your experiment is set up! Here's what I've configured:
-- Type: [type]
-- Metric: [metric name] (baseline [x])
-- Traffic: [n]/day, MDE: [x]%
-Check the wizard steps to review everything, and tweak any details as needed. You can also ask me to adjust anything!"
+1. Step 1: Experiment type
+2. Step 2: Primary metric + at least one guardrail
+3. Step 3: Daily traffic and MDE
+4. Step 4: Randomization strategy
+5. Step 5: Variance reduction plan
+6. Step 6: Risk assessment and checklist stance
+7. Step 7: Monitoring and stopping rules
+8. Step 8: Name/hypothesis/description + export guidance
 
 ## INCREMENTAL CONFIGURATION
-You have separate tool functions for each section. Configure each AS SOON AS you have enough info — call functions eagerly, not cautiously.
+You have separate tool functions for each section. Configure each as soon as enough information is available.
 
-1. **Experiment Type** (Step 1) — Call \`set_experiment_type\` as soon as you can infer the type.
-2. **Metrics** (Step 2) — Call \`set_metrics\` as soon as you know a metric. Include guardrails proactively.
-3. **Sample Size / Stats** (Step 3) — Call \`set_statistical_params\` when you know traffic and/or MDE.
-4. Steps 4-7 (Randomization, Variance Reduction, Risk, Monitoring) are auto-configured with sensible defaults. Only discuss if the user asks.
-5. **Experiment Details** (Step 8) — Call \`set_experiment_details\` to set name/hypothesis/description. **Generate these yourself** from the user's description — don't ask the user to write them.
+1. **Step 1** — Call \`set_experiment_type\`.
+2. **Step 2** — Call \`set_metrics\`.
+3. **Step 3** — Call \`set_statistical_params\`.
+4. **Step 4** — Call \`set_randomization\` with explicit values (unit, bucketing, consistency).
+5. **Step 5** — Call \`set_variance_reduction\` with the selected techniques (or explicitly keep them off).
+6. **Step 6** — Call \`set_risk_assessment\` (risk level, blast radius, mitigation/rollback defaults as applicable).
+7. **Step 7** — Call \`set_monitoring\` (refresh, SRM threshold, correction, stopping rules, decision criteria).
+8. **Step 8** — Call \`set_experiment_details\` for name/hypothesis/description.
 
-You can call MULTIPLE functions in the same response.
+Use multiple function calls in one response only when they are adjacent steps and clearly resolved.
 
-## EXAMPLE CONVERSATIONS
+## INFERENCE RULES
+- If user intent is clear (e.g., "test checkout flow"), infer AB_TEST and propose likely metrics immediately.
+- For conversion rates, use BINARY and decimal baseline (e.g., 0.03 for 3%).
+- For revenue/time/latency, use CONTINUOUS.
+- For counts (orders/messages/sessions), use COUNT.
+- Always add at least one guardrail metric.
 
-### Fast setup (user gives lots of context):
-User: "I want to test a new checkout page design. We get 30k visitors per day and our current conversion rate is 2.5%."
-→ Call set_experiment_type(AB_TEST) + set_experiment_details(name, hypothesis) + set_metrics(conversion rate PRIMARY + bounce rate GUARDRAIL) + set_statistical_params(mde: 5, dailyTraffic: 30000) — ALL in one response.
-→ Text: "Great — I've set up your experiment! I configured it as an A/B test with conversion rate (2.5% baseline) as your primary metric, bounce rate as a guardrail, and 30k daily traffic with a 5% MDE. Check the wizard to review everything! Would you like to add any other metrics or adjust the MDE?"
-
-### Gradual setup (user gives minimal info):
-User: "I want to test something on our website."
-→ Don't just ask "what do you want to test?" — be more specific: "Sure! What change are you considering? For example: a new landing page, a pricing change, a feature toggle, a new checkout flow…"
-
-User: "A new homepage banner"
-→ Immediately call set_experiment_type(AB_TEST) + set_experiment_details("Homepage Banner Test", hypothesis). Then ask: "What's the key metric you care about? For a homepage banner, common choices are click-through rate or scroll depth. Do either of those work?"
-
-User: "click through rate, it's about 4% right now"
-→ Call set_metrics with CTR as PRIMARY (baseline 0.04, BINARY, INCREASE) + suggest bounce rate as GUARDRAIL. Then ask about traffic.
-
-## EXPERIMENT TYPE KNOWLEDGE
-- **AB_TEST**: Default for most. Clean causal inference. Needs >1000 users/day.
-- **CLUSTER**: Treatment affects groups (cities, stores), network effects. Needs 20+ clusters.
-- **SWITCHBACK**: Two-sided marketplaces, supply-constrained. Good when user-level randomization isn't feasible.
-- **CAUSAL_INFERENCE**: When randomization isn't possible. Methods: DiD, RDD, PSM, IV.
-- **FACTORIAL**: Testing multiple independent changes simultaneously. Needs more traffic.
-- **MAB**: Continuous optimization priority, high opportunity cost of poor variants.
-
-## METRIC GUIDELINES
-- For conversion/click rates → BINARY type, baseline as decimal (e.g., 0.03 for 3%)
-- For revenue, time-on-page, order value → CONTINUOUS type
-- For page views, purchases, sessions → COUNT type
-- Always add at least one GUARDRAIL metric proactively (e.g., bounce rate, error rate, latency, page load time)
-
-## WHEN CALLING FUNCTIONS
-- Always briefly explain what you configured in your text response.
-- After configuring, **immediately state what's next** or what's still missing.
-- If all essentials are done, give the completion summary.`
+## WHEN CORE FIELDS ARE READY
+When Steps 1-3 are set, continue with Step 4 instead of jumping to summary.
+After Step 7 is configured, generate Step 8 details and guide the user to export/review.`
 }
 
 // --- Per-step tool function definitions ---
@@ -183,7 +214,7 @@ export const AI_TOOL_FUNCTIONS = [
     type: 'function' as const,
     function: {
       name: 'set_experiment_type',
-      description: 'Set the experiment type. Call this as soon as you can recommend a type based on the user\'s context.',
+      description: 'Set the experiment type. Call this as soon as you can recommend a type based on the user context.',
       parameters: {
         type: 'object' as const,
         properties: {
@@ -200,24 +231,8 @@ export const AI_TOOL_FUNCTIONS = [
   {
     type: 'function' as const,
     function: {
-      name: 'set_experiment_details',
-      description: 'Set the experiment name, hypothesis, and/or description. Generate these from context — do not ask the user to write them.',
-      parameters: {
-        type: 'object' as const,
-        properties: {
-          name: { type: 'string', description: 'A short descriptive name for the experiment' },
-          hypothesis: { type: 'string', description: 'The experiment hypothesis in the format: "If we [change], then [metric] will [direction] because [reason]"' },
-          description: { type: 'string', description: 'Brief description of the experiment' },
-        },
-        required: ['name'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
       name: 'set_metrics',
-      description: 'Add metrics to track. Always include at least one PRIMARY metric and suggest a GUARDRAIL metric proactively.',
+      description: 'Add metrics to track. Include at least one PRIMARY metric and at least one GUARDRAIL metric.',
       parameters: {
         type: 'object' as const,
         properties: {
@@ -230,11 +245,14 @@ export const AI_TOOL_FUNCTIONS = [
                 category: { type: 'string', enum: ['PRIMARY', 'SECONDARY', 'GUARDRAIL', 'MONITOR'] },
                 type: { type: 'string', enum: ['BINARY', 'CONTINUOUS', 'COUNT'] },
                 direction: { type: 'string', enum: ['INCREASE', 'DECREASE', 'EITHER'] },
-                baseline: { type: 'number', description: 'Estimated baseline value (rate as decimal for binary, e.g. 0.03 for 3%)' },
+                baseline: {
+                  type: 'number',
+                  description: 'Estimated baseline value (rate as decimal for binary, e.g. 0.03 for 3%)',
+                },
               },
               required: ['name', 'category', 'type', 'direction', 'baseline'],
             },
-            description: 'Metrics to add',
+            description: 'Metrics to add or update',
           },
         },
         required: ['metrics'],
@@ -245,7 +263,7 @@ export const AI_TOOL_FUNCTIONS = [
     type: 'function' as const,
     function: {
       name: 'set_statistical_params',
-      description: 'Set sample size parameters (MDE, daily traffic). Call this when you know the user\'s traffic volume and can estimate an MDE.',
+      description: 'Set sample size parameters (MDE and daily traffic).',
       parameters: {
         type: 'object' as const,
         properties: {
@@ -253,6 +271,153 @@ export const AI_TOOL_FUNCTIONS = [
           dailyTraffic: { type: 'number', description: 'Estimated daily traffic / daily active users' },
         },
         required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'set_randomization',
+      description: 'Configure Step 4 randomization settings.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          unit: {
+            type: 'string',
+            enum: ['USER_ID', 'SESSION', 'DEVICE', 'REQUEST', 'CLUSTER'],
+          },
+          bucketingStrategy: {
+            type: 'string',
+            enum: ['HASH_BASED', 'RANDOM'],
+          },
+          consistentAssignment: { type: 'boolean' },
+          sampleRatio: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Traffic split percentages, e.g. [50, 50]',
+          },
+          stratificationVariables: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                values: { type: 'array', items: { type: 'string' } },
+              },
+              required: ['name'],
+            },
+          },
+          rationale: { type: 'string' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'set_variance_reduction',
+      description: 'Configure Step 5 variance reduction settings.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          useCUPED: { type: 'boolean' },
+          cupedCovariate: { type: 'string' },
+          cupedExpectedReduction: { type: 'number' },
+          useStratification: { type: 'boolean' },
+          stratificationVariables: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          useMatchedPairs: { type: 'boolean' },
+          useBlocking: { type: 'boolean' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'set_risk_assessment',
+      description: 'Configure Step 6 risk assessment settings.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          riskLevel: { type: 'string', enum: ['HIGH', 'MEDIUM', 'LOW'] },
+          blastRadius: { type: 'number' },
+          potentialNegativeImpacts: { type: 'array', items: { type: 'string' } },
+          mitigationStrategies: { type: 'array', items: { type: 'string' } },
+          rollbackTriggers: { type: 'array', items: { type: 'string' } },
+          circuitBreakers: { type: 'array', items: { type: 'string' } },
+          preLaunchChecklistCompletedIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Checklist ids that should be marked completed',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'set_monitoring',
+      description: 'Configure Step 7 monitoring and stopping settings.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          refreshFrequency: { type: 'number' },
+          srmThreshold: { type: 'number' },
+          multipleTestingCorrection: {
+            type: 'string',
+            enum: ['NONE', 'BONFERRONI', 'BENJAMINI_HOCHBERG', 'HOLM'],
+          },
+          stoppingRules: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                type: { type: 'string', enum: ['SUCCESS', 'FUTILITY', 'HARM'] },
+                description: { type: 'string' },
+                threshold: { type: 'number' },
+                metricId: { type: 'string' },
+              },
+              required: ['type', 'description'],
+            },
+          },
+          decisionCriteria: {
+            type: 'object',
+            properties: {
+              ship: { type: 'array', items: { type: 'string' } },
+              iterate: { type: 'array', items: { type: 'string' } },
+              kill: { type: 'array', items: { type: 'string' } },
+            },
+            required: [],
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'set_experiment_details',
+      description: 'Set Step 8 experiment name, hypothesis, and/or description.',
+      parameters: {
+        type: 'object' as const,
+        properties: {
+          name: { type: 'string', description: 'A short descriptive name for the experiment' },
+          hypothesis: {
+            type: 'string',
+            description:
+              'The hypothesis in this format: If we [change], then [metric] will [direction] because [reason]',
+          },
+          description: { type: 'string', description: 'Brief description of the experiment' },
+        },
+        required: ['name'],
       },
     },
   },
